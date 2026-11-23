@@ -1535,6 +1535,75 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         default:
           $ref: '#/components/responses/DefaultResponse'
+    post:
+      tags:
+        - folders
+      summary: Create a directory in a virtual folder
+      description: 'Creates a directory inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards'
+      operationId: admin_create_folder_dir
+      parameters:
+        - in: query
+          name: path
+          required: true
+          description: Path of the directory to create, URL encoded
+          schema:
+            type: string
+        - in: query
+          name: mkdir_parents
+          description: Create parent directories if missing
+          schema:
+            type: boolean
+      responses:
+        '201':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
+    delete:
+      tags:
+        - folders
+      summary: Delete a directory of a virtual folder
+      description: 'Deletes a directory, recursively, inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards'
+      operationId: admin_delete_folder_dir
+      parameters:
+        - in: query
+          name: path
+          required: true
+          description: Path of the directory to delete, URL encoded
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
   '/folders/{name}/fs/files':
     parameters:
       - name: name
@@ -1571,6 +1640,135 @@ paths:
               schema:
                 type: string
                 format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
+    delete:
+      tags:
+        - folders
+      summary: Delete a file of a virtual folder
+      description: 'Deletes a file inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards'
+      operationId: admin_delete_folder_file
+      parameters:
+        - in: query
+          name: path
+          required: true
+          description: Path of the file to delete, URL encoded
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
+  '/folders/{name}/fs/files/upload':
+    parameters:
+      - name: name
+        in: path
+        description: the folder name
+        required: true
+        schema:
+          type: string
+    post:
+      tags:
+        - folders
+      summary: Upload a file to a virtual folder
+      description: 'Uploads the request body as a file inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards'
+      operationId: admin_upload_folder_file
+      requestBody:
+        content:
+          application/*:
+            schema:
+              type: string
+              format: binary
+      parameters:
+        - in: query
+          name: path
+          required: true
+          description: Path of the file to write, URL encoded
+          schema:
+            type: string
+        - in: query
+          name: mkdir_parents
+          description: Create parent directories if missing
+          schema:
+            type: boolean
+      responses:
+        '201':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
+  '/folders/{name}/fs/file-actions/move':
+    parameters:
+      - name: name
+        in: path
+        description: the folder name
+        required: true
+        schema:
+          type: string
+    post:
+      tags:
+        - folders
+      summary: Move or rename an entry of a virtual folder
+      description: 'Moves or renames a file or directory inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards'
+      operationId: admin_move_folder_entry
+      parameters:
+        - in: query
+          name: path
+          required: true
+          description: Path to move, URL encoded
+          schema:
+            type: string
+        - in: query
+          name: target
+          required: true
+          description: New path, URL encoded
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -3669,6 +3867,75 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         default:
           $ref: '#/components/responses/DefaultResponse'
+    post:
+      tags:
+        - users
+      summary: Create a directory in a user home
+      description: 'Creates a directory inside the specified user. Acts as the user: the user permissions and quota apply. Requires the view_user_files and edit_users permissions'
+      operationId: admin_create_user_dir
+      parameters:
+        - in: query
+          name: path
+          required: true
+          description: Path of the directory to create, URL encoded
+          schema:
+            type: string
+        - in: query
+          name: mkdir_parents
+          description: Create parent directories if missing
+          schema:
+            type: boolean
+      responses:
+        '201':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
+    delete:
+      tags:
+        - users
+      summary: Delete a directory of a user
+      description: 'Deletes a directory, recursively, inside the specified user. Acts as the user: the user permissions and quota apply. Requires the view_user_files and edit_users permissions'
+      operationId: admin_delete_user_dir
+      parameters:
+        - in: query
+          name: path
+          required: true
+          description: Path of the directory to delete, URL encoded
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
   '/users/{username}/fs/files':
     parameters:
       - name: username
@@ -3705,6 +3972,135 @@ paths:
               schema:
                 type: string
                 format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
+    delete:
+      tags:
+        - users
+      summary: Delete a file of a user
+      description: 'Deletes a file inside the specified user. Acts as the user: the user permissions and quota apply. Requires the view_user_files and edit_users permissions'
+      operationId: admin_delete_user_file
+      parameters:
+        - in: query
+          name: path
+          required: true
+          description: Path of the file to delete, URL encoded
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
+  '/users/{username}/fs/files/upload':
+    parameters:
+      - name: username
+        in: path
+        description: the username
+        required: true
+        schema:
+          type: string
+    post:
+      tags:
+        - users
+      summary: Upload a file to a user
+      description: 'Uploads the request body as a file inside the specified user. Acts as the user: the user permissions and quota apply. Requires the view_user_files and edit_users permissions'
+      operationId: admin_upload_user_file
+      requestBody:
+        content:
+          application/*:
+            schema:
+              type: string
+              format: binary
+      parameters:
+        - in: query
+          name: path
+          required: true
+          description: Path of the file to write, URL encoded
+          schema:
+            type: string
+        - in: query
+          name: mkdir_parents
+          description: Create parent directories if missing
+          schema:
+            type: boolean
+      responses:
+        '201':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
+  '/users/{username}/fs/file-actions/move':
+    parameters:
+      - name: username
+        in: path
+        description: the username
+        required: true
+        schema:
+          type: string
+    post:
+      tags:
+        - users
+      summary: Move or rename an entry of a user
+      description: 'Moves or renames a file or directory inside the specified user. Acts as the user: the user permissions and quota apply. Requires the view_user_files and edit_users permissions'
+      operationId: admin_move_user_entry
+      parameters:
+        - in: query
+          name: path
+          required: true
+          description: Path to move, URL encoded
+          schema:
+            type: string
+        - in: query
+          name: target
+          required: true
+          description: New path, URL encoded
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':

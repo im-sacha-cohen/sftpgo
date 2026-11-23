@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, type DragEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, Download, File, FileAudio, FileImage, FileText, FileVideo, Folder, FolderLock } from 'lucide-react';
-import { DataTable, EmptyState, IconButton, useToast } from '@/components/ui';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronRight, Download, File, FileAudio, FileImage, FileText, FileVideo, Folder, FolderLock, FolderPlus, MoreHorizontal, Pencil, Trash2, Upload } from 'lucide-react';
+import { Button, DataTable, EmptyState, IconButton, Input, Menu, Modal, useConfirm, useToast } from '@/components/ui';
 import { ApiError, api, request } from '@/api/client';
 import type { DirEntry } from '@/api/types';
 import { formatBytes, formatRelative } from '@/lib/format';
@@ -11,8 +11,10 @@ import { previewKind, type PreviewKind } from '@/components/preview/kinds';
 import './userfiles.css';
 
 /**
- * Read-only file browser over an admin "fs" API (`<base>/dirs` and
- * `<base>/files`): used for users' files and for virtual folders.
+ * File browser over an admin "fs" API (`<base>/dirs` and `<base>/files`): used
+ * for users' files (read-only) and for virtual folders. Pass `writable` to
+ * enable upload, new folder, rename and delete (`<base>/files/upload`,
+ * POST/DELETE `<base>/dirs`, DELETE `<base>/files`, `<base>/file-actions/move`).
  */
 
 const MODE_DIR = 0x80000000;
@@ -54,11 +56,113 @@ export interface FsBrowserProps {
   /** Console route for a directory. */
   route: (dir: string) => string;
   rootLabel?: string;
+  /** Enables the write actions. */
+  writable?: boolean;
+  /** Called after any change (e.g. to rescan the quota). */
+  onChanged?: () => void;
 }
 
-export function FsBrowser({ base, cacheKey, dir, route, rootLabel = 'Home' }: FsBrowserProps) {
+type Dialog = { kind: 'mkdir' } | { kind: 'rename'; entry: DirEntry } | null;
+
+export function FsBrowser({ base, cacheKey, dir, route, rootLabel = 'Home', writable = false, onChanged }: FsBrowserProps) {
   const navigate = useNavigate();
   const toast = useToast();
+  const confirm = useConfirm();
+  const qc = useQueryClient();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [dialog, setDialog] = useState<Dialog>(null);
+  const [dialogName, setDialogName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: cacheKey });
+    onChanged?.();
+  };
+
+  const upload = async (files: File[]) => {
+    if (!files.length) return;
+    setUploading({ done: 0, total: files.length });
+    let failed = 0;
+    for (const [i, f] of files.entries()) {
+      try {
+        await request(`${base}/files/upload`, {
+          method: 'POST',
+          query: { path: join(dir, f.name), mkdir_parents: 'true' },
+          rawBody: f,
+          headers: { 'Content-Type': 'application/octet-stream', 'X-SFTPGO-MTIME': String(f.lastModified) },
+        });
+      } catch (e) {
+        failed++;
+        toast({ title: `Couldn’t upload ${f.name}`, description: errMessage(e), tone: 'bad' });
+      }
+      setUploading({ done: i + 1, total: files.length });
+    }
+    setUploading(null);
+    if (failed < files.length) toast({ title: files.length - failed === 1 ? 'File uploaded' : `${files.length - failed} files uploaded`, tone: 'ok' });
+    refresh();
+  };
+
+  const remove = async (e: DirEntry) => {
+    const folder = isDir(e);
+    const ok = await confirm({
+      title: `Delete “${e.name}”?`,
+      message: folder ? 'The folder and everything inside it will be deleted. This cannot be undone.' : 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await request(`${base}/${folder ? 'dirs' : 'files'}`, { method: 'DELETE', query: { path: join(dir, e.name ?? '') } });
+      toast({ title: 'Deleted', tone: 'ok' });
+      refresh();
+    } catch (err) {
+      toast({ title: 'Couldn’t delete', description: errMessage(err), tone: 'bad' });
+    }
+  };
+
+  const submitDialog = async () => {
+    const name = dialogName.trim();
+    if (!dialog || !name || name.includes('/')) return;
+    setBusy(true);
+    try {
+      if (dialog.kind === 'mkdir') {
+        await request(`${base}/dirs`, { method: 'POST', query: { path: join(dir, name) } });
+        toast({ title: 'Folder created', tone: 'ok' });
+      } else {
+        await request(`${base}/file-actions/move`, {
+          method: 'POST',
+          query: { path: join(dir, dialog.entry.name ?? ''), target: join(dir, name) },
+        });
+        toast({ title: 'Renamed', tone: 'ok' });
+      }
+      setDialog(null);
+      refresh();
+    } catch (err) {
+      toast({ title: dialog.kind === 'mkdir' ? 'Couldn’t create the folder' : 'Couldn’t rename', description: errMessage(err), tone: 'bad' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const dropProps = writable
+    ? {
+        onDragOver: (e: DragEvent) => {
+          if (!e.dataTransfer.types.includes('Files')) return;
+          e.preventDefault();
+          setDragOver(true);
+        },
+        onDragLeave: (e: DragEvent) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false);
+        },
+        onDrop: (e: DragEvent) => {
+          e.preventDefault();
+          setDragOver(false);
+          void upload(Array.from(e.dataTransfer.files));
+        },
+      }
+    : {};
   // The open file is kept by full path so it stays open (and keeps playing) while browsing.
   const [open, setOpen] = useState<{ path: string; size: number } | null>(null);
 
@@ -116,6 +220,8 @@ export function FsBrowser({ base, cacheKey, dir, route, rootLabel = 'Home' }: Fs
         )
       }
     >
+      <div className={dragOver ? 'ufiles-drop is-over' : 'ufiles-drop'} {...dropProps}>
+      <div className="ufiles-bar">
       <nav className="ufiles-path" aria-label="Folder path">
         <Link to={route('/')} className="ufiles-path__seg">
           {rootLabel}
@@ -138,6 +244,28 @@ export function FsBrowser({ base, cacheKey, dir, route, rootLabel = 'Home' }: Fs
           );
         })}
       </nav>
+      {writable && (
+        <div className="ufiles-actions">
+          <Button icon={FolderPlus} onClick={() => (setDialogName(''), setDialog({ kind: 'mkdir' }))}>
+            New folder
+          </Button>
+          <Button variant="primary" icon={Upload} loading={!!uploading} onClick={() => fileInput.current?.click()}>
+            {uploading ? `Uploading ${uploading.done}/${uploading.total}` : 'Upload files'}
+          </Button>
+          <input
+            ref={fileInput}
+            type="file"
+            multiple
+            hidden
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              e.target.value = '';
+              void upload(files);
+            }}
+          />
+        </div>
+      )}
+      </div>
 
       {listing.error && dir === '/' && listing.error instanceof ApiError && listing.error.status === 404 ? (
         <EmptyState
@@ -155,7 +283,13 @@ export function FsBrowser({ base, cacheKey, dir, route, rootLabel = 'Home' }: Fs
           loading={listing.isLoading}
           onRowClick={openEntry}
           rowClassName={(e) => (open && join(dir, e.name ?? '') === open.path ? 'ufiles-row--open' : undefined)}
-          empty={<EmptyState icon={Folder} title="This folder is empty" />}
+          empty={
+            <EmptyState
+              icon={Folder}
+              title="This folder is empty"
+              description={writable ? 'Drop files here or use “Upload files”.' : undefined}
+            />
+          }
           columns={[
             {
               id: 'name',
@@ -182,12 +316,65 @@ export function FsBrowser({ base, cacheKey, dir, route, rootLabel = 'Home' }: Fs
               header: <span className="sr-only">Actions</span>,
               align: 'right',
               cell: (e) =>
-                isDir(e) ? null : (
+                writable ? (
+                  <Menu
+                    placement="bottom-end"
+                    trigger={<IconButton icon={MoreHorizontal} label={`Actions for ${e.name}`} variant="ghost" size="sm" />}
+                    items={[
+                      ...(isDir(e) ? [] : [{ label: 'Download', icon: Download, onSelect: () => void download(join(dir, e.name ?? '')) }]),
+                      { label: 'Rename', icon: Pencil, onSelect: () => (setDialogName(e.name ?? ''), setDialog({ kind: 'rename', entry: e })) },
+                      'separator' as const,
+                      { label: 'Delete', icon: Trash2, danger: true, onSelect: () => void remove(e) },
+                    ]}
+                  />
+                ) : isDir(e) ? null : (
                   <IconButton icon={Download} label={`Download ${e.name}`} variant="ghost" size="sm" onClick={() => void download(join(dir, e.name ?? ''))} />
                 ),
             },
           ]}
         />
+      )}
+      {writable && dragOver && <div className="ufiles-drop__hint">Drop files to upload them here</div>}
+      </div>
+      {dialog && (
+        <Modal
+          open
+          size="sm"
+          onClose={() => setDialog(null)}
+          title={dialog.kind === 'mkdir' ? 'New folder' : `Rename “${dialog.entry.name}”`}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setDialog(null)}>
+                Cancel
+              </Button>
+              <Button variant="primary" loading={busy} disabled={!dialogName.trim() || dialogName.includes('/')} onClick={() => void submitDialog()}>
+                {dialog.kind === 'mkdir' ? 'Create' : 'Rename'}
+              </Button>
+            </>
+          }
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void submitDialog();
+            }}
+          >
+            <Input
+              label="Name"
+              value={dialogName}
+              autoFocus
+              mono
+              error={dialogName.includes('/') ? 'A name can’t contain “/”.' : undefined}
+              onFocus={(e) => {
+                // Preselect the name without its extension, like a file manager.
+                const v = e.currentTarget.value;
+                const dot = v.lastIndexOf('.');
+                e.currentTarget.setSelectionRange(0, dot > 0 ? dot : v.length);
+              }}
+              onChange={(e) => setDialogName(e.target.value)}
+            />
+          </form>
+        </Modal>
       )}
     </PreviewLayout>
   );

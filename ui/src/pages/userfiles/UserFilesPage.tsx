@@ -91,6 +91,9 @@ function UserPicker() {
 }
 
 function Browser({ username }: { username: string }) {
+  const { can } = useAuth();
+  // Writing acts as the user (their permissions and quota apply) and needs edit_users.
+  const writable = can('edit_users');
   const params = useParams();
   const dir = '/' + (params['*'] ?? '').split('/').filter(Boolean).join('/');
   return (
@@ -98,10 +101,10 @@ function Browser({ username }: { username: string }) {
       <PageHeader
         title={<span className="mono">{username}</span>}
         docTitle={`Files of ${username}`}
-        subtitle="Read-only. Opening a file counts as a download for this user."
+        subtitle={writable ? "Changes are made as this user: their permissions and quota apply." : "Read-only. Opening a file counts as a download for this user."}
         crumbs={[{ label: 'User files', to: '/user-files' }]}
       />
-      <FsBrowser base={fsBase(username)} cacheKey={['user-files', username]} dir={dir} route={(d) => browseRoute(username, d)} />
+      <FsBrowser base={fsBase(username)} cacheKey={['user-files', username]} dir={dir} route={(d) => browseRoute(username, d)} writable={writable} />
     </Page>
   );
 }

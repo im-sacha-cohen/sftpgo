@@ -324,7 +324,22 @@ export default function FolderPage() {
         )}
       </PageHeader>
       {tab === 'files' ? (
-        <FsBrowser base={`/folders/${enc(name)}/fs`} cacheKey={['folder-files', name]} dir={browseDir} route={browseRoute} rootLabel={name} />
+        <FsBrowser
+          base={`/folders/${enc(name)}/fs`}
+          cacheKey={['folder-files', name]}
+          dir={browseDir}
+          route={browseRoute}
+          rootLabel={name}
+          writable
+          onChanged={() => {
+            // Writes go through a synthetic user: refresh the folder's used quota quietly.
+            if (!can('quota_scans')) return;
+            void api
+              .post(`/quotas/folders/${enc(name)}/scan`)
+              .catch(() => undefined)
+              .finally(() => window.setTimeout(() => qc.invalidateQueries({ queryKey: ['folders'] }), 1500));
+          }}
+        />
       ) : !isNew && query.isLoading ? (
         <Skeleton height={420} />
       ) : side ? (

@@ -59,3 +59,43 @@ a.ufiles-path__seg:hover {
 .ufiles-row--open td {
   background: var(--accent-soft);
 }
+
+/* Write actions (virtual folders) */
+.ufiles-drop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  border-radius: 16px;
+  outline: 2px dashed transparent;
+  outline-offset: 6px;
+}
+.ufiles-drop.is-over {
+  outline-color: var(--accent);
+  background: var(--accent-soft);
+}
+.ufiles-drop__hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--tx);
+  pointer-events: none;
+}
+.ufiles-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.ufiles-bar .ufiles-path {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ufiles-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}

@@ -52,7 +52,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         footer={
           <>
             <Button ref={cancelRef} variant="ghost" onClick={() => settle(false)}>
-              {o?.cancelLabel ?? 'Annuler'}
+              {o?.cancelLabel ?? 'Cancel'}
             </Button>
             <Button ref={confirmRef} variant={o?.danger ? 'danger' : 'primary'} onClick={() => settle(true)}>
               {o?.confirmLabel ?? 'Confirmer'}

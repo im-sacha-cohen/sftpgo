@@ -743,8 +743,16 @@ export interface paths {
          */
         get: operations["admin_get_folder_dir_contents"];
         put?: never;
-        post?: never;
-        delete?: never;
+        /**
+         * Create a directory in a virtual folder
+         * @description Creates a directory inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards
+         */
+        post: operations["admin_create_folder_dir"];
+        /**
+         * Delete a directory of a virtual folder
+         * @description Deletes a directory, recursively, inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards
+         */
+        delete: operations["admin_delete_folder_dir"];
         options?: never;
         head?: never;
         patch?: never;
@@ -767,6 +775,56 @@ export interface paths {
         get: operations["admin_download_folder_file"];
         put?: never;
         post?: never;
+        /**
+         * Delete a file of a virtual folder
+         * @description Deletes a file inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards
+         */
+        delete: operations["admin_delete_folder_file"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/folders/{name}/fs/files/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the folder name */
+                name: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload a file to a virtual folder
+         * @description Uploads the request body as a file inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards
+         */
+        post: operations["admin_upload_folder_file"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/folders/{name}/fs/file-actions/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the folder name */
+                name: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move or rename an entry of a virtual folder
+         * @description Moves or renames a file or directory inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards
+         */
+        post: operations["admin_move_folder_entry"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1380,8 +1438,16 @@ export interface paths {
          */
         get: operations["admin_get_user_dir_contents"];
         put?: never;
-        post?: never;
-        delete?: never;
+        /**
+         * Create a directory in a user home
+         * @description Creates a directory inside the specified user. Acts as the user: the user permissions and quota apply. Requires the view_user_files and edit_users permissions
+         */
+        post: operations["admin_create_user_dir"];
+        /**
+         * Delete a directory of a user
+         * @description Deletes a directory, recursively, inside the specified user. Acts as the user: the user permissions and quota apply. Requires the view_user_files and edit_users permissions
+         */
+        delete: operations["admin_delete_user_dir"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1404,6 +1470,56 @@ export interface paths {
         get: operations["admin_download_user_file"];
         put?: never;
         post?: never;
+        /**
+         * Delete a file of a user
+         * @description Deletes a file inside the specified user. Acts as the user: the user permissions and quota apply. Requires the view_user_files and edit_users permissions
+         */
+        delete: operations["admin_delete_user_file"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{username}/fs/files/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the username */
+                username: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload a file to a user
+         * @description Uploads the request body as a file inside the specified user. Acts as the user: the user permissions and quota apply. Requires the view_user_files and edit_users permissions
+         */
+        post: operations["admin_upload_user_file"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{username}/fs/file-actions/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the username */
+                username: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move or rename an entry of a user
+         * @description Moves or renames a file or directory inside the specified user. Acts as the user: the user permissions and quota apply. Requires the view_user_files and edit_users permissions
+         */
+        post: operations["admin_move_user_entry"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4943,6 +5059,72 @@ export interface operations {
             default: components["responses"]["DefaultResponse"];
         };
     };
+    admin_create_folder_dir: {
+        parameters: {
+            query: {
+                /** @description Path of the directory to create, URL encoded */
+                path: string;
+                /** @description Create parent directories if missing */
+                mkdir_parents?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description the folder name */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+            default: components["responses"]["DefaultResponse"];
+        };
+    };
+    admin_delete_folder_dir: {
+        parameters: {
+            query: {
+                /** @description Path of the directory to delete, URL encoded */
+                path: string;
+            };
+            header?: never;
+            path: {
+                /** @description the folder name */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+            default: components["responses"]["DefaultResponse"];
+        };
+    };
     admin_download_folder_file: {
         parameters: {
             query: {
@@ -4974,6 +5156,110 @@ export interface operations {
                 };
                 content: {
                     "*/*": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+            default: components["responses"]["DefaultResponse"];
+        };
+    };
+    admin_delete_folder_file: {
+        parameters: {
+            query: {
+                /** @description Path of the file to delete, URL encoded */
+                path: string;
+            };
+            header?: never;
+            path: {
+                /** @description the folder name */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+            default: components["responses"]["DefaultResponse"];
+        };
+    };
+    admin_upload_folder_file: {
+        parameters: {
+            query: {
+                /** @description Path of the file to write, URL encoded */
+                path: string;
+                /** @description Create parent directories if missing */
+                mkdir_parents?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description the folder name */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/*": string;
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+            default: components["responses"]["DefaultResponse"];
+        };
+    };
+    admin_move_folder_entry: {
+        parameters: {
+            query: {
+                /** @description Path to move, URL encoded */
+                path: string;
+                /** @description New path, URL encoded */
+                target: string;
+            };
+            header?: never;
+            path: {
+                /** @description the folder name */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -6537,6 +6823,72 @@ export interface operations {
             default: components["responses"]["DefaultResponse"];
         };
     };
+    admin_create_user_dir: {
+        parameters: {
+            query: {
+                /** @description Path of the directory to create, URL encoded */
+                path: string;
+                /** @description Create parent directories if missing */
+                mkdir_parents?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description the username */
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+            default: components["responses"]["DefaultResponse"];
+        };
+    };
+    admin_delete_user_dir: {
+        parameters: {
+            query: {
+                /** @description Path of the directory to delete, URL encoded */
+                path: string;
+            };
+            header?: never;
+            path: {
+                /** @description the username */
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+            default: components["responses"]["DefaultResponse"];
+        };
+    };
     admin_download_user_file: {
         parameters: {
             query: {
@@ -6568,6 +6920,110 @@ export interface operations {
                 };
                 content: {
                     "*/*": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+            default: components["responses"]["DefaultResponse"];
+        };
+    };
+    admin_delete_user_file: {
+        parameters: {
+            query: {
+                /** @description Path of the file to delete, URL encoded */
+                path: string;
+            };
+            header?: never;
+            path: {
+                /** @description the username */
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+            default: components["responses"]["DefaultResponse"];
+        };
+    };
+    admin_upload_user_file: {
+        parameters: {
+            query: {
+                /** @description Path of the file to write, URL encoded */
+                path: string;
+                /** @description Create parent directories if missing */
+                mkdir_parents?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description the username */
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/*": string;
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+            default: components["responses"]["DefaultResponse"];
+        };
+    };
+    admin_move_user_entry: {
+        parameters: {
+            query: {
+                /** @description Path to move, URL encoded */
+                path: string;
+                /** @description New path, URL encoded */
+                target: string;
+            };
+            header?: never;
+            path: {
+                /** @description the username */
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];

@@ -16,8 +16,11 @@ package httpd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"path"
 
 	"github.com/go-chi/render"
 	"github.com/rs/xid"
@@ -30,13 +33,16 @@ import (
 	"github.com/drakkan/sftpgo/v2/internal/util"
 )
 
-// Read-only access for administrators to the content of a virtual folder.
-// The admin needs both manage_folders and view_user_files. The folder is read
-// through a connection for a synthetic, read-only user whose root is the
-// folder's filesystem (mapped path or remote storage), so nothing outside the
-// folder can be reached and nothing can be written.
+// Access for administrators to the content of a virtual folder. The admin needs
+// both manage_folders and view_user_files. The folder is reached through a
+// connection for a synthetic user whose root is the folder's filesystem (mapped
+// path or remote storage), so nothing outside the folder can be reached. Read
+// handlers get a read-only user; the write handlers below (upload, mkdir,
+// rename/move, delete) get full permissions on the folder. The synthetic user
+// does not exist in the data provider, so the folder's used quota is not
+// updated on writes: run a folder quota scan afterwards (the Console does).
 
-func getAdminFolderConnection(w http.ResponseWriter, r *http.Request) (*Connection, error) {
+func getAdminFolderConnection(w http.ResponseWriter, r *http.Request, write ...bool) (*Connection, error) {
 	claims, err := jwt.FromContext(r.Context())
 	if err != nil || claims.Username == "" {
 		sendAPIResponse(w, r, err, "Invalid token claims", http.StatusBadRequest)
@@ -53,7 +59,7 @@ func getAdminFolderConnection(w http.ResponseWriter, r *http.Request) (*Connecti
 			Username:    fmt.Sprintf("folder:%s", folder.Name),
 			Status:      1,
 			HomeDir:     folder.MappedPath,
-			Permissions: map[string][]string{"/": {dataprovider.PermListItems, dataprovider.PermDownload}},
+			Permissions: folderPermissions(len(write) > 0 && write[0]),
 		},
 		FsConfig: folder.FsConfig,
 	}
@@ -65,8 +71,8 @@ func getAdminFolderConnection(w http.ResponseWriter, r *http.Request) (*Connecti
 		sendAPIResponse(w, r, err, "Unable to add connection", http.StatusTooManyRequests)
 		return connection, err
 	}
-	logger.Info(logSender, connection.GetID(), "admin %q is reading the virtual folder %q, path %q",
-		claims.Username, folder.Name, r.URL.Query().Get("path"))
+	logger.Info(logSender, connection.GetID(), "admin %q is accessing the virtual folder %q, method %s, path %q",
+		claims.Username, folder.Name, r.Method, r.URL.Query().Get("path"))
 	return connection, nil
 }
 
@@ -125,5 +131,147 @@ func adminGetFolderFile(w http.ResponseWriter, r *http.Request) {
 			ctx = context.WithValue(ctx, render.StatusCtxKey, status)
 		}
 		render.JSON(w, r.WithContext(ctx), resp)
+	}
+}
+
+func folderPermissions(write bool) map[string][]string {
+	if write {
+		return map[string][]string{"/": {dataprovider.PermAny}}
+	}
+	return map[string][]string{"/": {dataprovider.PermListItems, dataprovider.PermDownload}}
+}
+
+// adminConnGetter opens the connection a write handler works on (a folder's
+// synthetic user, or a real user on behalf of the admin) and sends the error
+// response itself.
+type adminConnGetter func(w http.ResponseWriter, r *http.Request) (*Connection, error)
+
+func getAdminFolderWriteConnection(w http.ResponseWriter, r *http.Request) (*Connection, error) {
+	return getAdminFolderConnection(w, r, true)
+}
+
+// withAdminWriteConnection runs fn with the connection from get and removes the
+// connection afterwards.
+func withAdminWriteConnection(w http.ResponseWriter, r *http.Request, get adminConnGetter, fn func(*Connection)) {
+	connection, err := get(w, r)
+	if connection != nil {
+		defer common.Connections.Remove(connection.GetID())
+	}
+	if err != nil {
+		return
+	}
+	_ = connection.User.CheckFsRoot(connection.ID)
+	fn(connection)
+}
+
+func adminFsCreateDir(get adminConnGetter) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
+		withAdminWriteConnection(w, r, get, func(connection *Connection) {
+			name := connection.User.GetCleanedPath(r.URL.Query().Get("path"))
+			if name == "/" {
+				sendAPIResponse(w, r, nil, "Please set the path of the directory to create", http.StatusBadRequest)
+				return
+			}
+			if getBoolQueryParam(r, "mkdir_parents") {
+				if err := connection.CheckParentDirs(path.Dir(name)); err != nil {
+					sendAPIResponse(w, r, err, "Error checking parent directories", getMappedStatusCode(err))
+					return
+				}
+			}
+			if err := connection.CreateDir(name); err != nil {
+				sendAPIResponse(w, r, err, fmt.Sprintf("Unable to create directory %q", name), getMappedStatusCode(err))
+				return
+			}
+			sendAPIResponse(w, r, nil, fmt.Sprintf("Directory %q created", name), http.StatusCreated)
+		})
+	}
+}
+
+func adminFsDeleteDir(get adminConnGetter) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
+		withAdminWriteConnection(w, r, get, func(connection *Connection) {
+			name := connection.User.GetCleanedPath(r.URL.Query().Get("path"))
+			if name == "/" {
+				sendAPIResponse(w, r, nil, "The root directory cannot be deleted", http.StatusBadRequest)
+				return
+			}
+			if err := connection.RemoveAll(name); err != nil {
+				sendAPIResponse(w, r, err, fmt.Sprintf("Unable to delete directory %q", name), getMappedStatusCode(err))
+				return
+			}
+			sendAPIResponse(w, r, nil, fmt.Sprintf("Directory %q deleted", name), http.StatusOK)
+		})
+	}
+}
+
+func adminFsDeleteFile(get adminConnGetter) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
+		withAdminWriteConnection(w, r, get, func(connection *Connection) {
+			name := connection.User.GetCleanedPath(r.URL.Query().Get("path"))
+			fs, p, err := connection.GetFsAndResolvedPath(name)
+			if err != nil {
+				sendAPIResponse(w, r, err, fmt.Sprintf("Unable to delete file %q", name), getMappedStatusCode(err))
+				return
+			}
+			var fi os.FileInfo
+			if fi, err = fs.Lstat(p); err != nil {
+				err = connection.GetFsError(fs, err)
+				sendAPIResponse(w, r, err, fmt.Sprintf("Unable to delete file %q", name), getMappedStatusCode(err))
+				return
+			}
+			if fi.IsDir() && fi.Mode()&os.ModeSymlink == 0 {
+				sendAPIResponse(w, r, nil, fmt.Sprintf("Unable delete %q, it is not a file/symlink", name), http.StatusBadRequest)
+				return
+			}
+			if err = connection.RemoveFile(fs, p, name, fi); err != nil {
+				sendAPIResponse(w, r, err, fmt.Sprintf("Unable to delete file %q", name), getMappedStatusCode(err))
+				return
+			}
+			sendAPIResponse(w, r, nil, fmt.Sprintf("File %q deleted", name), http.StatusOK)
+		})
+	}
+}
+
+func adminFsMove(get adminConnGetter) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
+		withAdminWriteConnection(w, r, get, func(connection *Connection) {
+			oldName := connection.User.GetCleanedPath(r.URL.Query().Get("path"))
+			newName := connection.User.GetCleanedPath(r.URL.Query().Get("target"))
+			if oldName == "/" || newName == "/" {
+				sendAPIResponse(w, r, nil, "The root directory cannot be moved", http.StatusBadRequest)
+				return
+			}
+			if err := connection.Rename(oldName, newName); err != nil {
+				sendAPIResponse(w, r, err, fmt.Sprintf("Unable to rename %q => %q", oldName, newName), getMappedStatusCode(err))
+				return
+			}
+			sendAPIResponse(w, r, nil, fmt.Sprintf("%q renamed to %q", oldName, newName), http.StatusOK)
+		})
+	}
+}
+
+func adminFsUpload(get adminConnGetter) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if maxUploadFileSize > 0 {
+			r.Body = http.MaxBytesReader(w, r.Body, maxUploadFileSize)
+		}
+		if !r.URL.Query().Has("path") {
+			sendAPIResponse(w, r, errors.New("please set a file path"), "", http.StatusBadRequest)
+			return
+		}
+		withAdminWriteConnection(w, r, get, func(connection *Connection) {
+			filePath := connection.User.GetCleanedPath(r.URL.Query().Get("path"))
+			if getBoolQueryParam(r, "mkdir_parents") {
+				if err := connection.CheckParentDirs(path.Dir(filePath)); err != nil {
+					sendAPIResponse(w, r, err, "Error checking parent directories", getMappedStatusCode(err))
+					return
+				}
+			}
+			_ = doUploadFile(w, r, connection, filePath)
+		})
 	}
 }
