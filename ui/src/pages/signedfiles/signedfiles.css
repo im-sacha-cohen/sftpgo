@@ -1,0 +1,42 @@
+.sf-host {
+  font-weight: 500;
+  white-space: nowrap;
+}
+.sf-path {
+  white-space: nowrap;
+}
+.sf-bad {
+  color: var(--bad);
+  font-weight: 600;
+}
+.sf-warn {
+  color: var(--warn);
+  font-weight: 600;
+}
+.sf-events-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.sf-h2 {
+  margin: 0;
+  font-size: var(--fs-lg, 15px);
+  font-weight: 600;
+}
+.sf-hint {
+  margin: 4px 0 0;
+  font-size: var(--fs-sm);
+}
+.sf-time,
+.sf-reason {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: nowrap;
+}
+.sf-time .mono,
+.sf-reason .mono.muted {
+  font-size: var(--fs-xs, 11px);
+}

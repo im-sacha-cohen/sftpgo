@@ -128,6 +128,14 @@ func (s *Service) Start(disableAWSInstallationCode bool) error {
 		return err
 	}
 
+	// fork: files served behind signed URLs, see internal/signedfiles
+	if err := config.GetSignedFilesConfig().Start(func(err error) { s.Error = err; s.Shutdown <- true }); err != nil {
+		logger.Error(logSender, "", "%v", err)
+		logger.ErrorToConsole("%v", err)
+		plugin.Handler.Cleanup()
+		return err
+	}
+
 	s.startServices()
 	go func() { _ = common.Config.ExecuteStartupHook() }()
 

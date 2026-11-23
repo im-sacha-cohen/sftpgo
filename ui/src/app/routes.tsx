@@ -77,6 +77,7 @@ const adminRoutes: RouteObject[] = [
   { path: 'actions/:name', element: page(() => import('@/pages/actions/ActionPage')) },
   { path: 'defender', element: page(() => import('@/pages/defender/DefenderPage')) },
   { path: 'iplists', element: page(() => import('@/pages/iplists/IpListsPage')) },
+  { path: 'signed-files', element: page(() => import('@/pages/signedfiles/SignedFilesPage')) },
   { path: 'maintenance', element: page(() => import('@/pages/maintenance/MaintenancePage')) },
   { path: 'settings', element: page(() => import('@/pages/settings/ServerSettingsPage')) },
   { path: 'profile', element: page(() => import('@/pages/profile/ProfilePage')) },

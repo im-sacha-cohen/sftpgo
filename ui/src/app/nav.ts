@@ -20,6 +20,7 @@ import {
   Zap,
   Folder,
   CircleUser,
+  Link2,
 } from 'lucide-react';
 import type { Dict } from '@/lib/i18n';
 
@@ -61,6 +62,7 @@ export const navDict = {
     actions: 'Actions',
     defender: 'Defender',
     iplists: 'Listes IP',
+    signedFiles: 'Fichiers signés',
     maintenance: 'Maintenance',
     settings: 'Réglages serveur',
     files: 'Mes fichiers',
@@ -94,6 +96,7 @@ export const navDict = {
     actions: 'Actions',
     defender: 'Defender',
     iplists: 'IP lists',
+    signedFiles: 'Signed files',
     maintenance: 'Maintenance',
     settings: 'Server settings',
     files: 'My files',
@@ -145,6 +148,7 @@ export const adminNav: NavGroup[] = [
     items: [
       { key: 'defender', to: '/defender', icon: Shield, perms: ['view_defender', 'manage_defender'] },
       { key: 'iplists', to: '/iplists', icon: ListFilter, perms: ['manage_ip_lists'] },
+      { key: 'signedFiles', to: '/signed-files', icon: Link2, perms: ['manage_system'] },
     ],
   },
   {

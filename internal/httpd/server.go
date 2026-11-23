@@ -1486,6 +1486,7 @@ func (s *httpdServer) setupRESTAPIRoutes() {
 				router.With(s.checkPerms(dataprovider.PermAdminViewDefender)).Get(defenderHosts, getDefenderHosts)
 				router.With(s.checkPerms(dataprovider.PermAdminViewDefender)).Get(defenderHosts+"/{id}", getDefenderHostByID)
 				router.With(s.checkPerms(dataprovider.PermAdminManageDefender)).Delete(defenderHosts+"/{id}", deleteDefenderHostByID)
+				router.With(s.checkPerms(dataprovider.PermAdminAny)).Get(signedFilesStatusPath, getSignedFilesStatus)
 				router.With(s.checkPerms(dataprovider.PermAdminAny)).Get(adminPath, getAdmins)
 				router.With(s.checkPerms(dataprovider.PermAdminAny)).Post(adminPath, addAdmin)
 				router.With(s.checkPerms(dataprovider.PermAdminAny)).Get(adminPath+"/{username}", getAdminByUsername)
