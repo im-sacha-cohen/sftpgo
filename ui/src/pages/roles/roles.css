@@ -1,0 +1,31 @@
+.roles-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.roles-name .muted {
+  font-size: var(--fs-sm);
+  white-space: normal;
+}
+.roles-members {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+}
+.roles-actions {
+  display: inline-flex;
+  gap: 2px;
+}
+.roles-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.roles-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: var(--fs-sm);
+}

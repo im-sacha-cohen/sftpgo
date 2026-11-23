@@ -1,0 +1,113 @@
+/*
+ * Console design tokens — "Design v2" (validated 2026-11-23).
+ * Warm light theme by default, matching warm dark theme. Switched by
+ * data-theme on <html>. Components use these variables only — never raw hex.
+ *
+ * Accent = the amber of the logo folder. It is a FILL colour (buttons, active
+ * marks, bars): never use --accent for text on light backgrounds, use
+ * --accent-ink instead (links, highlighted words).
+ */
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f6f5f1;
+  --bg-side: #ffffff;
+  --panel: #ffffff;
+  --raised: #ffffff;
+  --field: #ffffff;
+  --overlay: rgba(21, 23, 28, 0.38);
+  --line: #e6e3da;
+  --line-strong: #ddd9ce;
+  --row: #efece4;
+  --hover: #fbfaf6;
+  --active: #fff7de;
+  --tx: #15171c;
+  --tx-2: #4a4d55;
+  --tx-3: #6b6e76;
+  --tx-active: #15171c;
+  --pill: #f3f1ea;
+  --pill-tx: #4a4d55;
+  --track: #f0ede4;
+  --ok: #1f7a45;
+  --warn: #8a5a00;
+  --bad: #a8321c;
+  --ok-soft: #e3f3e8;
+  --warn-soft: #fff1c7;
+  --bad-soft: #fbe3dc;
+  --note: #fff7de;
+  --inv: #15171c;
+  --inv-tx: #ffffff;
+  --accent: #ffc21a;
+  --accent-strong: #d69600;
+  --accent-tx: #15171c;
+  --accent-soft: #fff3cc;
+  --accent-ink: #8a5a00;
+  --focus: rgba(214, 150, 0, 0.55);
+  --shadow: 0 24px 60px rgba(21, 23, 28, 0.12), 0 2px 6px rgba(21, 23, 28, 0.06);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #141310;
+  --bg-side: #1b1a16;
+  --panel: #1b1a16;
+  --raised: #22211c;
+  --field: #1f1e19;
+  --overlay: rgba(8, 7, 5, 0.66);
+  --line: #2c2a24;
+  --line-strong: #3a372f;
+  --row: #26241f;
+  --hover: #23221d;
+  --active: #2e2a1c;
+  --tx: #f3f1ea;
+  --tx-2: #c9c5ba;
+  --tx-3: #a29e93;
+  --tx-active: #ffffff;
+  --pill: #2a2822;
+  --pill-tx: #d9d5ca;
+  --track: #2e2c26;
+  --ok: #4ade80;
+  --warn: #ffc21a;
+  --bad: #f48b71;
+  --ok-soft: rgba(74, 222, 128, 0.12);
+  --warn-soft: rgba(255, 194, 26, 0.12);
+  --bad-soft: rgba(244, 139, 113, 0.14);
+  --note: #2a2414;
+  --inv: #f3f1ea;
+  --inv-tx: #15171c;
+  --accent: #ffc21a;
+  --accent-strong: #ffd257;
+  --accent-tx: #15171c;
+  --accent-soft: rgba(255, 194, 26, 0.14);
+  --accent-ink: #ffc21a;
+  --focus: rgba(255, 194, 26, 0.5);
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+:root {
+  --font: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --r-sm: 6px;
+  --r: 10px;
+  --r-lg: 14px;
+  --r-xl: 18px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --fs-xs: 12.5px;
+  --fs-sm: 14px;
+  --fs: 15px;
+  --fs-md: 15px;
+  --fs-lg: 17px;
+  --fs-xl: 30px;
+  --h-control: 42px;
+  --h-control-sm: 34px;
+  --z-dropdown: 50;
+  --z-modal: 100;
+  --z-toast: 200;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}

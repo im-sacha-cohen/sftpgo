@@ -1338,6 +1338,7 @@ func (s *httpdServer) initializeRouter() error {
 			router.Use(compressor.Handler)
 			serveStaticDir(router, webStaticFilesPath, s.staticFilesPath, true)
 		})
+		s.setupConsoleRoutes(s.router)
 		if s.binding.OIDC.isEnabled() {
 			s.router.Get(webOIDCRedirectPath, s.handleOIDCRedirect)
 		}

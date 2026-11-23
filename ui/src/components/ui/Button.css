@@ -1,0 +1,125 @@
+.c-btn {
+  --c-btn-h: var(--h-control);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex: none;
+  height: var(--c-btn-h);
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--raised);
+  color: var(--tx);
+  font-family: var(--font);
+  font-size: var(--fs);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 120ms var(--ease),
+    border-color 120ms var(--ease),
+    color 120ms var(--ease),
+    opacity 120ms var(--ease);
+}
+
+.c-btn svg {
+  flex: none;
+}
+
+.c-btn:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.c-btn:active:not(:disabled) {
+  background: var(--active);
+}
+
+.c-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.c-btn.is-loading {
+  opacity: 0.85;
+  cursor: progress;
+}
+
+.c-btn--sm {
+  --c-btn-h: var(--h-control-sm);
+  gap: 6px;
+  padding: 0 10px;
+  font-size: var(--fs-sm);
+}
+
+/* Primary */
+.c-btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-tx);
+}
+.c-btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, var(--tx));
+  border-color: color-mix(in srgb, var(--accent) 88%, var(--tx));
+}
+.c-btn--primary:active:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 80%, var(--tx));
+}
+.c-btn--primary .c-kbd {
+  background: color-mix(in srgb, var(--accent-tx) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent-tx) 22%, transparent);
+  color: inherit;
+}
+
+/* Ghost */
+.c-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--tx-2);
+}
+.c-btn--ghost:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--tx);
+}
+.c-btn--ghost:active:not(:disabled) {
+  background: var(--active);
+}
+
+/* Danger */
+.c-btn--danger {
+  background: var(--bad);
+  border-color: var(--bad);
+  color: var(--accent-tx);
+}
+.c-btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bad) 88%, var(--tx));
+  border-color: color-mix(in srgb, var(--bad) 88%, var(--tx));
+}
+.c-btn--danger .c-kbd {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--accent-tx) 25%, transparent);
+  color: inherit;
+}
+
+/* Icon-only */
+.c-btn--icon {
+  width: var(--c-btn-h);
+  padding: 0;
+}
+
+.c-btn--block {
+  width: 100%;
+}
+
+.c-btn__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.c-btn__kbd {
+  margin-left: 2px;
+  margin-right: -4px;
+}

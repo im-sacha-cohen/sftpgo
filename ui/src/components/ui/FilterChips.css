@@ -1,0 +1,65 @@
+.c-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.c-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tx-2);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 120ms var(--ease),
+    color 120ms var(--ease),
+    border-color 120ms var(--ease);
+}
+
+.c-chip:hover:not([aria-pressed='true']) {
+  background: var(--hover);
+  color: var(--tx);
+}
+
+.c-chip[aria-pressed='true'] {
+  border-color: var(--inv);
+  background: var(--inv);
+  color: var(--inv-tx);
+}
+
+.c-chip__count {
+  color: var(--tx-3);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.c-chip[aria-pressed='true'] .c-chip__count {
+  color: inherit;
+  opacity: 0.7;
+}
+
+.c-chip__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tx-3);
+}
+.c-chip__dot--ok {
+  background: var(--ok);
+}
+.c-chip__dot--warn {
+  background: var(--warn);
+}
+.c-chip__dot--bad {
+  background: var(--bad);
+}
+.c-chip__dot--accent {
+  background: var(--accent);
+}

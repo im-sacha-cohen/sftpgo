@@ -1,0 +1,26 @@
+.c-tooltip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: calc(var(--z-modal) + 20);
+  max-width: 280px;
+  padding: 4px 8px;
+  border-radius: var(--r-sm);
+  background: var(--inv);
+  color: var(--inv-tx);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 1.4;
+  pointer-events: none;
+  animation: c-tip-in 120ms var(--ease);
+}
+
+.c-tooltip:not([data-placed]) {
+  visibility: hidden;
+}
+
+@keyframes c-tip-in {
+  from {
+    opacity: 0;
+  }
+}

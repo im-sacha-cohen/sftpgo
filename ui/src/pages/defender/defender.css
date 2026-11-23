@@ -1,0 +1,18 @@
+.def-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.def-search {
+  margin-left: auto;
+  flex: 0 1 280px;
+  min-width: 200px;
+}
+.def-ip {
+  font-weight: 500;
+}
+.def-rules {
+  font-size: var(--fs);
+  line-height: 1.6;
+}

@@ -1,0 +1,68 @@
+.c-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 40px 24px;
+  text-align: center;
+}
+.c-empty--compact {
+  padding: 20px 16px;
+}
+
+.c-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--pill);
+  color: var(--tx-2);
+}
+
+.c-empty__title {
+  color: var(--tx);
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.c-empty__desc {
+  max-width: 420px;
+  color: var(--tx-3);
+  font-size: var(--fs-sm);
+}
+
+.c-empty__action {
+  margin-top: 10px;
+}
+
+/* ---- Skeleton ---- */
+.c-skel {
+  display: block;
+  border-radius: var(--r-sm);
+  background: linear-gradient(90deg, var(--track) 0%, var(--row) 50%, var(--track) 100%);
+  background-size: 200% 100%;
+  animation: c-skel 1.4s ease-in-out infinite;
+}
+
+.c-skel--circle {
+  border-radius: 50%;
+}
+
+.c-skel-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@keyframes c-skel {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}

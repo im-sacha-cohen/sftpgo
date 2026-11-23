@@ -1,0 +1,54 @@
+.c-savebar {
+  position: sticky;
+  bottom: var(--sp-4);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  max-width: 100%;
+  margin: var(--sp-4) auto 0;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--raised);
+  box-shadow: var(--shadow);
+  animation: c-savebar-in 160ms var(--ease);
+}
+
+.c-savebar__dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warn);
+  box-shadow: 0 0 0 3px var(--warn-soft);
+}
+
+.c-savebar__msg {
+  color: var(--tx-2);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+.c-savebar__actions {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+@keyframes c-savebar-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (max-width: 520px) {
+  .c-savebar {
+    flex-wrap: wrap;
+  }
+  .c-savebar__msg {
+    white-space: normal;
+  }
+}

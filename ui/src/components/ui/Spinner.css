@@ -1,0 +1,23 @@
+.c-spinner {
+  flex: none;
+  animation: c-spin 700ms linear infinite;
+}
+
+.c-spinner-wrap {
+  display: inline-flex;
+  align-items: center;
+  color: var(--tx-3);
+}
+
+@keyframes c-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Keep a (slower) rotation with reduced motion so the busy state stays perceivable. */
+@media (prefers-reduced-motion: reduce) {
+  .c-spinner {
+    animation-duration: 1.6s !important;
+  }
+}

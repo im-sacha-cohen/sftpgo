@@ -1,0 +1,218 @@
+/* ---- Trigger ---- */
+.c-select-trigger {
+  justify-content: space-between;
+  cursor: pointer;
+}
+.c-select-trigger.is-disabled {
+  cursor: not-allowed;
+}
+
+.c-select-trigger__value {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.c-select-trigger__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.c-select-trigger__icon {
+  flex: none;
+  color: var(--tx-2);
+}
+
+.c-select-trigger__placeholder {
+  overflow: hidden;
+  color: var(--tx-3);
+  text-overflow: ellipsis;
+}
+
+.c-select-trigger__chevron {
+  flex: none;
+  margin-right: -2px;
+  color: var(--tx-3);
+  transition: transform 140ms var(--ease);
+}
+.c-select-trigger[aria-expanded='true'] .c-select-trigger__chevron {
+  transform: rotate(180deg);
+}
+
+/* ---- Multi-select chips in the trigger ---- */
+.c-ms-chips {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.c-ms-chip {
+  flex: none;
+  max-width: 160px;
+  height: 22px;
+  padding: 0 7px;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: var(--pill);
+  color: var(--pill-tx);
+  font-size: var(--fs-sm);
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.c-control--sm .c-ms-chip {
+  height: 20px;
+  line-height: 20px;
+  font-size: var(--fs-xs);
+}
+
+.c-ms-more {
+  flex: none;
+  color: var(--tx-3);
+  font-size: var(--fs-sm);
+}
+
+/* ---- Popover content ---- */
+.c-select-pop {
+  max-width: min(480px, calc(100vw - 16px));
+}
+
+.c-listbox-search {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--tx-3);
+}
+
+.c-listbox-search__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--tx);
+  font-size: var(--fs);
+}
+.c-listbox-search__input::placeholder {
+  color: var(--tx-3);
+}
+.c-listbox-search__input:focus-visible {
+  outline: none;
+}
+
+.c-listbox {
+  position: relative;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 300px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  outline: none;
+}
+
+.c-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  color: var(--tx);
+  cursor: pointer;
+  user-select: none;
+}
+
+.c-option[data-active='true'] {
+  background: var(--row);
+}
+
+.c-option[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.c-option__icon {
+  flex: none;
+  color: var(--tx-3);
+}
+
+.c-option__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.c-option__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.c-listbox.is-mono .c-option__label {
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+.c-option__desc {
+  color: var(--tx-3);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+}
+
+.c-option__check {
+  flex: none;
+  color: var(--accent-ink);
+}
+
+/* Visual checkbox used in multi-select options */
+.c-option__box {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--field);
+  color: var(--accent-tx);
+}
+.c-option[aria-selected='true'] .c-option__box {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.c-listbox__empty {
+  padding: 14px 8px;
+  color: var(--tx-3);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+.c-listbox-footer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  border-top: 1px solid var(--line);
+  color: var(--tx-3);
+  font-size: var(--fs-xs);
+}

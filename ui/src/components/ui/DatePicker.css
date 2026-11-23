@@ -1,0 +1,178 @@
+.c-date {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+.c-date__trigger {
+  cursor: pointer;
+}
+.c-date.has-clear .c-date__trigger {
+  padding-right: 36px;
+}
+
+.c-date__icon {
+  flex: none;
+  color: var(--tx-3);
+}
+
+.c-date__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.c-date__value.is-placeholder {
+  color: var(--tx-3);
+}
+
+.c-date__clear.c-btn {
+  --c-btn-h: 24px;
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+}
+
+/* ---- Calendar popover ---- */
+.c-cal {
+  width: 280px;
+  padding: 8px;
+  overflow: auto;
+}
+
+.c-cal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.c-cal__title {
+  flex: 1;
+  font-weight: 600;
+  text-align: center;
+}
+
+.c-cal__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.c-cal__row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.c-cal__wd {
+  height: 26px;
+  color: var(--tx-3);
+  font-size: var(--fs-xs);
+  line-height: 26px;
+  text-align: center;
+}
+
+.c-cal__day {
+  width: 100%;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--tx);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background-color 120ms var(--ease);
+}
+.c-cal__day:hover:not(.is-disabled):not(.is-selected) {
+  background: var(--row);
+}
+.c-cal__day:focus-visible {
+  outline-offset: 0;
+}
+.c-cal__day.is-outside {
+  color: var(--tx-3);
+}
+.c-cal__day.is-today {
+  border-color: var(--line-strong);
+  font-weight: 600;
+}
+.c-cal__day.is-selected {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-tx);
+  font-weight: 600;
+}
+.c-cal__day.is-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.c-cal__time {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 8px 4px 0;
+  border-top: 1px solid var(--line);
+}
+
+.c-cal__time-label {
+  color: var(--tx-2);
+  font-size: var(--fs-sm);
+}
+
+.c-cal__foot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.c-cal__spacer {
+  flex: 1;
+}
+
+.c-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--h-control-sm);
+  padding: 0 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--field);
+}
+.c-time:focus-within {
+  border-color: var(--accent);
+}
+
+.c-time__seg {
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--tx);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  text-align: center;
+}
+.c-time__seg:focus {
+  outline: none;
+  background: var(--accent-soft);
+}
+
+.c-time__sep {
+  color: var(--tx-3);
+  font-family: var(--mono);
+}

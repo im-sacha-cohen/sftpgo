@@ -25,3 +25,7 @@ import (
 func serveStaticDir(router chi.Router, path, fsDirPath string, disableDirectoryIndex bool) {
 	fileServer(router, path, http.Dir(fsDirPath), disableDirectoryIndex)
 }
+
+func getStaticFileSystem(fsDirPath string) http.FileSystem {
+	return http.Dir(fsDirPath)
+}

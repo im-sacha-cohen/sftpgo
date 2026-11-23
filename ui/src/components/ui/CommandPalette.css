@@ -1,0 +1,132 @@
+.c-cmdk-root {
+  padding-top: 12vh;
+}
+
+.c-cmdk {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 620px;
+  max-height: min(520px, 76vh);
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--raised);
+  box-shadow: var(--shadow);
+  animation: c-dialog-in 140ms var(--ease);
+}
+
+.c-cmdk__search {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  height: 50px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+  color: var(--tx-3);
+}
+
+.c-cmdk__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--tx);
+  font-size: var(--fs-md);
+}
+.c-cmdk__input::placeholder {
+  color: var(--tx-3);
+}
+.c-cmdk__input:focus-visible {
+  outline: none;
+}
+
+.c-cmdk__list {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding: 6px;
+  overflow-y: auto;
+}
+
+.c-cmdk__group + .c-cmdk__group {
+  margin-top: 4px;
+}
+
+.c-cmdk__group-label {
+  padding: 8px 10px 4px;
+  color: var(--tx-3);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+
+.c-cmdk__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: var(--r);
+  color: var(--tx);
+  cursor: pointer;
+}
+.c-cmdk__item.is-active {
+  background: var(--row);
+}
+
+.c-cmdk__icon {
+  flex: none;
+  width: 16px;
+  color: var(--tx-3);
+}
+.c-cmdk__item.is-active .c-cmdk__icon {
+  color: var(--tx-2);
+}
+
+.c-cmdk__label {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.c-cmdk__desc {
+  overflow: hidden;
+  color: var(--tx-3);
+  font-size: var(--fs-sm);
+  text-overflow: ellipsis;
+}
+
+.c-cmdk__enter {
+  flex: none;
+  color: var(--tx-3);
+}
+
+.c-cmdk__empty {
+  padding: 28px 12px;
+  color: var(--tx-3);
+  text-align: center;
+}
+
+.c-cmdk__foot {
+  display: flex;
+  flex: none;
+  gap: 16px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+  color: var(--tx-3);
+  font-size: var(--fs-xs);
+}
+.c-cmdk__foot span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

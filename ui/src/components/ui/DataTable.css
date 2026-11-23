@@ -1,0 +1,147 @@
+.c-table-wrap {
+  position: relative;
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--panel);
+}
+
+.c-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--fs);
+}
+
+.c-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 36px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--tx-3);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.c-table td {
+  height: 42px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--tx);
+  vertical-align: middle;
+}
+.c-table--dense td {
+  height: 34px;
+}
+.c-table td.is-mono {
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+.c-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.c-table tbody tr:not(.c-table__empty-row):not(.c-table__skeleton):hover td {
+  background: var(--hover);
+}
+
+.c-table tbody tr.is-selected td {
+  background: var(--accent-soft);
+}
+
+.c-table tbody tr.is-clickable {
+  cursor: pointer;
+}
+
+.c-table tbody tr:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.c-table .c-table__check {
+  width: 40px;
+  padding-right: 0;
+}
+.c-table .c-table__check .c-check {
+  vertical-align: middle;
+}
+
+.c-table__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 -6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+.c-table__sort.is-right {
+  flex-direction: row-reverse;
+}
+.c-table__sort:hover {
+  background: var(--hover);
+  color: var(--tx);
+}
+.c-table__sort.is-sorted {
+  color: var(--tx);
+}
+
+.c-table__sort-icon {
+  opacity: 0.55;
+}
+.c-table__sort.is-sorted .c-table__sort-icon {
+  opacity: 1;
+  color: var(--accent-ink);
+}
+
+.c-table__empty {
+  height: auto !important;
+}
+
+/* ---- Pagination ---- */
+.c-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  color: var(--tx-3);
+  font-size: var(--fs-sm);
+}
+
+.c-pager__range {
+  font-variant-numeric: tabular-nums;
+}
+.c-pager__range strong {
+  color: var(--tx);
+  font-weight: 500;
+}
+
+.c-pager__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.c-pager__size {
+  width: 84px;
+}
+
+.c-pager__page {
+  min-width: 70px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}

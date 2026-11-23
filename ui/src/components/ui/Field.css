@@ -1,0 +1,150 @@
+.c-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.c-field__label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.c-field__label {
+  color: var(--tx-2);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.c-field__req {
+  margin-left: 3px;
+  color: var(--bad);
+}
+
+.c-field__aside {
+  color: var(--tx-3);
+  font-size: var(--fs-xs);
+}
+
+.c-field__hint {
+  color: var(--tx-3);
+  font-size: var(--fs-xs);
+}
+
+.c-field__error {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--bad);
+  font-size: var(--fs-xs);
+}
+.c-field__error svg {
+  flex: none;
+}
+
+/* ---- Shared input box (Input, Textarea, NumberInput, TagInput, Select/DatePicker triggers) ---- */
+.c-control {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  min-width: 0;
+  height: var(--h-control);
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--field);
+  color: var(--tx);
+  font-family: var(--font);
+  font-size: var(--fs);
+  text-align: left;
+  transition:
+    border-color 120ms var(--ease),
+    box-shadow 120ms var(--ease);
+}
+
+.c-control:hover:not(.is-disabled) {
+  border-color: color-mix(in srgb, var(--line-strong) 65%, var(--tx-3));
+}
+
+.c-control:focus-within,
+button.c-control:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+.c-control.is-invalid {
+  border-color: var(--bad);
+}
+.c-control.is-invalid:focus-within,
+button.c-control.is-invalid:focus-visible {
+  box-shadow: 0 0 0 2px var(--bad-soft);
+}
+
+.c-control.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.c-control--sm {
+  height: var(--h-control-sm);
+  padding: 0 10px;
+  font-size: var(--fs-sm);
+}
+
+.c-control__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+.c-control__input:focus-visible {
+  outline: none;
+}
+.c-control__input::placeholder {
+  color: var(--tx-3);
+  opacity: 1;
+}
+.c-control__input:disabled {
+  cursor: not-allowed;
+}
+
+.c-control__affix {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  color: var(--tx-3);
+  font-size: var(--fs-sm);
+}
+
+.c-control--mono .c-control__input,
+.c-control--mono .c-control__value {
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+.c-control--textarea {
+  height: auto;
+  align-items: stretch;
+  padding: 7px var(--sp-3);
+}
+.c-control--textarea .c-control__input {
+  min-height: 72px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+/* Small icon button sitting inside a control (password toggle, clear…) */
+.c-control .c-control__iconbtn {
+  --c-btn-h: 26px;
+  margin-right: -6px;
+}

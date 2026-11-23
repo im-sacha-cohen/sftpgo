@@ -34,3 +34,7 @@ func serveStaticDir(router chi.Router, path, fsDirPath string, disableDirectoryI
 		fileServer(router, path, http.Dir(fsDirPath), disableDirectoryIndex)
 	}
 }
+
+func getStaticFileSystem(_ string) http.FileSystem {
+	return bundle.GetStaticFs()
+}
