@@ -52,6 +52,7 @@ const (
 	PermAdminViewDefender     = "view_defender"
 	PermAdminViewEvents       = "view_events"
 	PermAdminDisableMFA       = "disable_mfa"
+	PermAdminViewUserFiles    = "view_user_files"
 )
 
 const (
@@ -67,7 +68,8 @@ var (
 	validAdminPerms = []string{PermAdminAny, PermAdminAddUsers, PermAdminChangeUsers, PermAdminDeleteUsers,
 		PermAdminViewUsers, PermAdminManageFolders, PermAdminManageGroups, PermAdminViewConnections,
 		PermAdminCloseConnections, PermAdminViewServerStatus, PermAdminQuotaScans,
-		PermAdminManageDefender, PermAdminViewDefender, PermAdminViewEvents, PermAdminDisableMFA}
+		PermAdminManageDefender, PermAdminViewDefender, PermAdminViewEvents, PermAdminDisableMFA,
+		PermAdminViewUserFiles}
 	forbiddenPermsForRoleAdmins = []string{PermAdminAny}
 )
 

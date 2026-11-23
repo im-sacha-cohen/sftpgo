@@ -857,14 +857,14 @@ func (s *httpdServer) getUserToken(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		updateLoginMetrics(&dataprovider.User{BaseUser: sdk.BaseUser{Username: username}},
 			dataprovider.LoginMethodPassword, ipAddr, common.ErrNoCredentials, r)
-		w.Header().Set(common.HTTPAuthenticationHeader, basicRealm)
+		setBasicAuthChallenge(w, r)
 		sendAPIResponse(w, r, nil, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 	if username == "" || strings.TrimSpace(password) == "" {
 		updateLoginMetrics(&dataprovider.User{BaseUser: sdk.BaseUser{Username: username}},
 			dataprovider.LoginMethodPassword, ipAddr, common.ErrNoCredentials, r)
-		w.Header().Set(common.HTTPAuthenticationHeader, basicRealm)
+		setBasicAuthChallenge(w, r)
 		sendAPIResponse(w, r, nil, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
@@ -876,7 +876,7 @@ func (s *httpdServer) getUserToken(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := dataprovider.CheckUserAndPass(username, password, ipAddr, protocol)
 	if err != nil {
-		w.Header().Set(common.HTTPAuthenticationHeader, basicRealm)
+		setBasicAuthChallenge(w, r)
 		updateLoginMetrics(&user, dataprovider.LoginMethodPassword, ipAddr, err, r)
 		sendAPIResponse(w, r, dataprovider.ErrInvalidCredentials, http.StatusText(http.StatusUnauthorized),
 			http.StatusUnauthorized)
@@ -893,7 +893,7 @@ func (s *httpdServer) getUserToken(w http.ResponseWriter, r *http.Request) {
 		passcode := r.Header.Get(otpHeaderCode)
 		if passcode == "" {
 			logger.Debug(logSender, "", "TOTP enabled for user %q and not passcode provided, authentication refused", user.Username)
-			w.Header().Set(common.HTTPAuthenticationHeader, basicRealm)
+			setBasicAuthChallenge(w, r)
 			updateLoginMetrics(&user, dataprovider.LoginMethodPassword, ipAddr, dataprovider.ErrInvalidCredentials, r)
 			sendAPIResponse(w, r, dataprovider.ErrInvalidCredentials, http.StatusText(http.StatusUnauthorized),
 				http.StatusUnauthorized)
@@ -909,7 +909,7 @@ func (s *httpdServer) getUserToken(w http.ResponseWriter, r *http.Request) {
 			user.Filters.TOTPConfig.Secret.GetPayload())
 		if !match || err != nil {
 			logger.Debug(logSender, "invalid passcode for user %q, match? %v, err: %v", user.Username, match, err)
-			w.Header().Set(common.HTTPAuthenticationHeader, basicRealm)
+			setBasicAuthChallenge(w, r)
 			updateLoginMetrics(&user, dataprovider.LoginMethodPassword, ipAddr, dataprovider.ErrInvalidCredentials, r)
 			sendAPIResponse(w, r, dataprovider.ErrInvalidCredentials, http.StatusText(http.StatusUnauthorized),
 				http.StatusUnauthorized)
@@ -955,7 +955,7 @@ func (s *httpdServer) generateAndSendUserToken(w http.ResponseWriter, r *http.Re
 func (s *httpdServer) getToken(w http.ResponseWriter, r *http.Request) {
 	username, password, ok := r.BasicAuth()
 	if !ok {
-		w.Header().Set(common.HTTPAuthenticationHeader, basicRealm)
+		setBasicAuthChallenge(w, r)
 		sendAPIResponse(w, r, nil, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
@@ -963,7 +963,7 @@ func (s *httpdServer) getToken(w http.ResponseWriter, r *http.Request) {
 	admin, err := dataprovider.CheckAdminAndPass(username, password, ipAddr)
 	if err != nil {
 		_ = handleDefenderEventLoginFailed(ipAddr, err)
-		w.Header().Set(common.HTTPAuthenticationHeader, basicRealm)
+		setBasicAuthChallenge(w, r)
 		sendAPIResponse(w, r, dataprovider.ErrInvalidCredentials, http.StatusText(http.StatusUnauthorized),
 			http.StatusUnauthorized)
 		return
@@ -972,7 +972,7 @@ func (s *httpdServer) getToken(w http.ResponseWriter, r *http.Request) {
 		passcode := r.Header.Get(otpHeaderCode)
 		if passcode == "" {
 			logger.Debug(logSender, "", "TOTP enabled for admin %q and not passcode provided, authentication refused", admin.Username)
-			w.Header().Set(common.HTTPAuthenticationHeader, basicRealm)
+			setBasicAuthChallenge(w, r)
 			err = handleDefenderEventLoginFailed(ipAddr, dataprovider.ErrInvalidCredentials)
 			sendAPIResponse(w, r, err, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
@@ -987,7 +987,7 @@ func (s *httpdServer) getToken(w http.ResponseWriter, r *http.Request) {
 			admin.Filters.TOTPConfig.Secret.GetPayload())
 		if !match || err != nil {
 			logger.Debug(logSender, "invalid passcode for admin %q, match? %v, err: %v", admin.Username, match, err)
-			w.Header().Set(common.HTTPAuthenticationHeader, basicRealm)
+			setBasicAuthChallenge(w, r)
 			err = handleDefenderEventLoginFailed(ipAddr, dataprovider.ErrInvalidCredentials)
 			sendAPIResponse(w, r, err, http.StatusText(http.StatusUnauthorized),
 				http.StatusUnauthorized)
@@ -1434,11 +1434,19 @@ func (s *httpdServer) setupRESTAPIRoutes() {
 				router.With(s.checkPerms(dataprovider.PermAdminChangeUsers)).Put(userPath+"/{username}", updateUser)
 				router.With(s.checkPerms(dataprovider.PermAdminDeleteUsers)).Delete(userPath+"/{username}", deleteUser)
 				router.With(s.checkPerms(dataprovider.PermAdminDisableMFA)).Put(userPath+"/{username}/2fa/disable", disableUser2FA)
+				router.With(s.checkPerms(dataprovider.PermAdminViewUserFiles), compressor.Handler).
+					Get(userPath+"/{username}/fs/dirs", adminReadUserFolder)
+				router.With(s.checkPerms(dataprovider.PermAdminViewUserFiles)).
+					Get(userPath+"/{username}/fs/files", adminGetUserFile)
 				router.With(s.checkPerms(dataprovider.PermAdminManageFolders)).Get(folderPath, getFolders)
 				router.With(s.checkPerms(dataprovider.PermAdminManageFolders)).Get(folderPath+"/{name}", getFolderByName)
 				router.With(s.checkPerms(dataprovider.PermAdminManageFolders)).Post(folderPath, addFolder)
 				router.With(s.checkPerms(dataprovider.PermAdminManageFolders)).Put(folderPath+"/{name}", updateFolder)
 				router.With(s.checkPerms(dataprovider.PermAdminManageFolders)).Delete(folderPath+"/{name}", deleteFolder)
+				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles),
+					compressor.Handler).Get(folderPath+"/{name}/fs/dirs", adminReadFolderDir)
+				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles)).
+					Get(folderPath+"/{name}/fs/files", adminGetFolderFile)
 				router.With(s.checkPerms(dataprovider.PermAdminManageGroups)).Get(groupPath, getGroups)
 				router.With(s.checkPerms(dataprovider.PermAdminManageGroups)).Get(groupPath+"/{name}", getGroupByName)
 				router.With(s.checkPerms(dataprovider.PermAdminManageGroups)).Post(groupPath, addGroup)

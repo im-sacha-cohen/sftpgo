@@ -58,6 +58,7 @@ import {
 import { filesDict } from './i18n';
 import { MoveCopyDrawer, NameModal } from './FileDialogs';
 import { PreviewModal, previewKind, type PreviewKind } from './Preview';
+import { PreviewLayout } from '@/components/preview/FilePreview';
 import { ShareDialog } from './ShareDialog';
 import { filesFromDrop, uploads, UploadsPanel, type QueuedFile } from './uploads';
 import { friendlyDate } from './when';
@@ -601,7 +602,7 @@ export default function FilesPage() {
                 key={name}
                 data-row=""
                 tabIndex={tab}
-                className={cx('files-row', folder && 'files-row--dir', isSel && 'is-selected')}
+                className={cx('files-row', folder && 'files-row--dir', isSel && 'is-selected', preview?.path === joinPath(dir, name) && 'is-previewing')}
                 onClick={(ev) => onRowClick(ev, e, idx)}
                 onMouseDown={(ev) => ev.shiftKey && ev.preventDefault()}
                 onFocus={() => setActive(idx)}
@@ -658,77 +659,96 @@ export default function FilesPage() {
 
   return (
     <Page>
-      <div className="files-page">
-        <header className="files-head">
-          {dir !== '/' && (
-            <nav className="files-trail" aria-label={t('path')}>
-              <ol>
-                <li>
-                  <Link to="/files">{t('root')}</Link>
-                </li>
-                {segs.map((s, i) => {
-                  const p = '/' + segs.slice(0, i + 1).join('/');
-                  const last = i === segs.length - 1;
-                  return (
-                    <li key={p}>
-                      <span className="files-trail__sep" aria-hidden="true">
-                        /
-                      </span>
-                      {last ? <span aria-current="page">{s}</span> : <Link to={filesRoute(p)}>{s}</Link>}
-                    </li>
-                  );
-                })}
-              </ol>
-            </nav>
-          )}
-          <div className="files-head__row">
-            <h1 className="files-title">{title}</h1>
-            {perms.write && (
-              <div className="files-head__actions">
-                <Button icon={FolderPlus} onClick={() => setNewFolder(true)}>
-                  {t('newFolder')}
-                </Button>
-                <Button variant="primary" icon={Upload} onClick={() => fileInput.current?.click()}>
-                  {t('uploadFiles')}
-                </Button>
-              </div>
-            )}
-          </div>
-        </header>
-
-        <input
-          ref={fileInput}
-          type="file"
-          multiple
-          hidden
-          tabIndex={-1}
-          onChange={(e) => {
-            const files = Array.from(e.target.files ?? []);
-            e.target.value = '';
-            void startUpload(files.map((file) => ({ file })));
-          }}
-        />
-
-        {q.isError ? (
-          <div className="files-card">
-            <EmptyState
-              icon={FolderOpen}
-              title={t('loadError')}
-              description={errMsg(q.error)}
-              action={
-                <div className="files-error-actions">
-                  <Button onClick={() => void q.refetch()}>{c('retry')}</Button>
-                  {dir !== '/' && <Button onClick={() => goTo('/')}>{t('backRoot')}</Button>}
-                </div>
+      <PreviewLayout
+        panel={
+          preview && (
+            <PreviewModal
+              path={preview.path}
+              size={preview.size}
+              kind={preview.kind}
+              onClose={() => setPreview(null)}
+              onDownload={() =>
+                void downloadFile(preview.path).catch((e) => toast({ title: c('error'), description: errMsg(e), tone: 'bad' }))
               }
+              onPrev={previewIndex > 0 ? () => showPreview(viewable[previewIndex - 1]) : undefined}
+              onNext={previewIndex >= 0 && previewIndex < viewable.length - 1 ? () => showPreview(viewable[previewIndex + 1]) : undefined}
+              position={previewIndex >= 0 ? `${previewIndex + 1} / ${viewable.length}` : undefined}
             />
-          </div>
-        ) : (
-          <div ref={listRef} className="files-card" tabIndex={-1} onKeyDown={onListKeyDown}>
-            {content}
-          </div>
-        )}
-      </div>
+          )
+        }
+      >
+        <div className="files-page">
+          <header className="files-head">
+            {dir !== '/' && (
+              <nav className="files-trail" aria-label={t('path')}>
+                <ol>
+                  <li>
+                    <Link to="/files">{t('root')}</Link>
+                  </li>
+                  {segs.map((s, i) => {
+                    const p = '/' + segs.slice(0, i + 1).join('/');
+                    const last = i === segs.length - 1;
+                    return (
+                      <li key={p}>
+                        <span className="files-trail__sep" aria-hidden="true">
+                          /
+                        </span>
+                        {last ? <span aria-current="page">{s}</span> : <Link to={filesRoute(p)}>{s}</Link>}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </nav>
+            )}
+            <div className="files-head__row">
+              <h1 className="files-title">{title}</h1>
+              {perms.write && (
+                <div className="files-head__actions">
+                  <Button icon={FolderPlus} onClick={() => setNewFolder(true)}>
+                    {t('newFolder')}
+                  </Button>
+                  <Button variant="primary" icon={Upload} onClick={() => fileInput.current?.click()}>
+                    {t('uploadFiles')}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </header>
+
+          <input
+            ref={fileInput}
+            type="file"
+            multiple
+            hidden
+            tabIndex={-1}
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              e.target.value = '';
+              void startUpload(files.map((file) => ({ file })));
+            }}
+          />
+
+          {q.isError ? (
+            <div className="files-card">
+              <EmptyState
+                icon={FolderOpen}
+                title={t('loadError')}
+                description={errMsg(q.error)}
+                action={
+                  <div className="files-error-actions">
+                    <Button onClick={() => void q.refetch()}>{c('retry')}</Button>
+                    {dir !== '/' && <Button onClick={() => goTo('/')}>{t('backRoot')}</Button>}
+                  </div>
+                }
+              />
+            </div>
+          ) : (
+            <div ref={listRef} className="files-card" tabIndex={-1} onKeyDown={onListKeyDown}>
+              {content}
+            </div>
+          )}
+        </div>
+      </PreviewLayout>
 
       {dragging && perms.write && (
         <div className="files-dropzone" aria-hidden="true">
@@ -771,18 +791,6 @@ export default function FilesPage() {
           initialMode={moveCopy.mode}
           onClose={() => setMoveCopy(null)}
           onSubmit={(mode, dest) => moveOrCopy(mode, moveCopy.names, dest)}
-        />
-      )}
-      {preview && (
-        <PreviewModal
-          path={preview.path}
-          size={preview.size}
-          kind={preview.kind}
-          onClose={() => setPreview(null)}
-          onDownload={() => void download([baseName(preview.path)])}
-          onPrev={previewIndex > 0 ? () => showPreview(viewable[previewIndex - 1]) : undefined}
-          onNext={previewIndex >= 0 && previewIndex < viewable.length - 1 ? () => showPreview(viewable[previewIndex + 1]) : undefined}
-          position={previewIndex >= 0 ? `${previewIndex + 1} / ${viewable.length}` : undefined}
         />
       )}
       {shareTarget && (

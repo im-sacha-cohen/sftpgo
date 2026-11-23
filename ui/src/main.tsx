@@ -8,6 +8,7 @@ import { LangProvider } from '@/lib/i18n';
 import { ThemeProvider } from '@/lib/theme';
 import { ApiError } from '@/api/client';
 import { router } from '@/app/routes';
+import { installPreloadErrorReload } from '@/lib/chunks';
 import '@/styles/base.css';
 
 const queryClient = new QueryClient({
@@ -19,6 +20,8 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+installPreloadErrorReload();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -35,35 +35,35 @@ export function SizeInput({ label, hint, value, onChange, disabled, placeholder 
   const emit = (n: number | null, u: SizeUnit) => onChange(n ? Math.round(n * UNIT_BYTES[u]) : 0);
 
   return (
-    <div className="users-size">
-      <NumberInput
-        label={label}
-        hint={hint}
-        value={num}
-        min={0}
-        precision={2}
-        disabled={disabled}
-        placeholder={placeholder ?? t('unlimited')}
-        onChange={(n) => {
-          setNum(n);
-          emit(n, unit);
-        }}
-      />
-      <Select<SizeUnit>
-        className="users-size__unit"
-        aria-label="Unit"
-        value={unit}
-        disabled={disabled}
-        options={[
-          { value: 'MB', label: t('unitMB') },
-          { value: 'GB', label: t('unitGB') },
-          { value: 'TB', label: t('unitTB') },
-        ]}
-        onChange={(u) => {
-          setUnit(u);
-          emit(num, u);
-        }}
-      />
-    </div>
+    <NumberInput
+      label={label}
+      hint={hint}
+      value={num}
+      min={0}
+      precision={2}
+      disabled={disabled}
+      placeholder={placeholder ?? t('unlimited')}
+      onChange={(n) => {
+        setNum(n);
+        emit(n, unit);
+      }}
+      action={
+        <Select<SizeUnit>
+          className="users-size__unit"
+          aria-label="Unit"
+          value={unit}
+          disabled={disabled}
+          options={[
+            { value: 'MB', label: t('unitMB') },
+            { value: 'GB', label: t('unitGB') },
+            { value: 'TB', label: t('unitTB') },
+          ]}
+          onChange={(u) => {
+            setUnit(u);
+            emit(num, u);
+          }}
+        />
+      }
+    />
   );
 }

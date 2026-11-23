@@ -3,14 +3,16 @@ import { createBrowserRouter, Navigate, Outlet, useLocation, type RouteObject } 
 import { Spinner } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { config } from '@/lib/config';
+import { withReload } from '@/lib/chunks';
 import { Shell } from './Shell';
 import { LayoutProvider } from './layout-context';
 import { adminNav } from './nav';
 import LoginPage from '@/pages/LoginPage';
 import NotFoundPage from '@/pages/NotFoundPage';
+import RouteError from '@/pages/RouteError';
 
 function page(loader: () => Promise<{ default: ComponentType }>) {
-  const C = lazy(loader);
+  const C = lazy(withReload(loader));
   return (
     <Suspense
       fallback={
@@ -28,8 +30,11 @@ function RequireSession({ kind, children }: { kind?: 'admin' | 'user'; children:
   const { session, expired } = useAuth();
   const location = useLocation();
   if (!session) {
-    // Keep the page mounted behind the re-auth modal when the token just expired.
-    if (expired) return null;
+    // The server refused the token (expired, revoked, server restarted): there is
+    // no session left to show the re-auth modal over, so go to the sign-in page
+    // and come back here afterwards. (A token reaching its end while the page is
+    // open keeps the session and shows the re-auth modal from the Shell.)
+    void expired;
     return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
   if (kind && session.kind !== kind) return <Navigate to="/" replace />;
@@ -61,6 +66,7 @@ const adminRoutes: RouteObject[] = [
   { path: 'apikeys', element: page(() => import('@/pages/apikeys/ApiKeysPage')) },
   { path: 'folders', element: page(() => import('@/pages/folders/FoldersPage')) },
   { path: 'folders/:name', element: page(() => import('@/pages/folders/FolderPage')) },
+  { path: 'folders/:name/files/*', element: page(() => import('@/pages/folders/FolderFilesPage')) },
   { path: 'rules', element: page(() => import('@/pages/rules/RulesPage')) },
   { path: 'rules/:name', element: page(() => import('@/pages/rules/RulesPage')) },
   { path: 'actions', element: page(() => import('@/pages/actions/ActionsPage')) },
@@ -82,9 +88,10 @@ const userRoutes: RouteObject[] = [
 export const router = createBrowserRouter(
   [
     { path: '/login', element: <LoginPage /> },
-    { path: '/dev/components', element: page(() => import('@/pages/dev/ComponentsDemo')) },
+    { path: '/dev/components', element: page(() => import('@/pages/dev/ComponentsDemo')), errorElement: <RouteError /> },
     {
       path: '/',
+      errorElement: <RouteError />,
       element: (
         <RequireSession>
           <LayoutProvider>
@@ -94,8 +101,8 @@ export const router = createBrowserRouter(
       ),
       children: [
         { index: true, element: <HomeRedirect /> },
-        { element: <RequireSession kind="admin"><OutletPassthrough /></RequireSession>, children: adminRoutes },
-        { element: <RequireSession kind="user"><OutletPassthrough /></RequireSession>, children: userRoutes },
+        { element: <RequireSession kind="admin"><OutletPassthrough /></RequireSession>, errorElement: <RouteError />, children: adminRoutes },
+        { element: <RequireSession kind="user"><OutletPassthrough /></RequireSession>, errorElement: <RouteError />, children: userRoutes },
         { path: '*', element: <NotFoundPage /> },
       ],
     },

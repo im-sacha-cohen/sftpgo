@@ -107,7 +107,9 @@ async function parseError(res: Response): Promise<ApiError> {
 
 /** Obtains a JWT. Throws ApiError(401) on bad credentials or missing/invalid OTP. */
 export async function login(kind: SessionKind, username: string, password: string, otp?: string) {
-  const headers: Record<string, string> = { Authorization: basicAuth(username, password) };
+  // X-Requested-With: without it a refused attempt makes the server send a Basic
+  // challenge and the browser shows its own login dialog (see setBasicAuthChallenge).
+  const headers: Record<string, string> = { Authorization: basicAuth(username, password), 'X-Requested-With': 'XMLHttpRequest' };
   if (otp) headers['X-SFTPGO-OTP'] = otp;
   const res = await fetch(`${config.apiBase}${kind === 'admin' ? '/token' : '/user/token'}`, { headers });
   if (!res.ok) throw await parseError(res);

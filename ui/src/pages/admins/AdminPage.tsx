@@ -227,18 +227,18 @@ export default function AdminPage() {
                   <Input label={t('email')} type="email" value={draft.email ?? ''} onChange={(e) => set('email', e.target.value)} />
                 </div>
                 <Input label={t('description')} value={draft.description ?? ''} onChange={(e) => set('description', e.target.value)} />
-                <div className="admins-pwd">
-                  <PasswordInput
-                    label={t('password')}
-                    hint={isNew ? undefined : t('passwordNew')}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="new-password"
-                  />
-                  <Button icon={Wand2} onClick={() => setPassword(generatePassword())}>
-                    {t('generate')}
-                  </Button>
-                </div>
+                <PasswordInput
+                  label={t('password')}
+                  hint={isNew ? undefined : t('passwordNew')}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
+                  action={
+                    <Button icon={Wand2} onClick={() => setPassword(generatePassword())}>
+                      {t('generate')}
+                    </Button>
+                  }
+                />
                 <Switch checked={draft.status === 1} onChange={(v) => set('status', v ? 1 : 0)} label={t('accountActive')} />
               </div>
             </Card>

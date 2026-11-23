@@ -148,3 +148,21 @@ button.c-control.is-invalid:focus-visible {
   --c-btn-h: 26px;
   margin-right: -6px;
 }
+
+/* Field box + side action (Input `action` prop): the action lines up with the box. */
+.c-control-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.c-control-row > .c-control {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.c-control-row__action {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--sp-2);
+}

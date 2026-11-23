@@ -727,6 +727,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/folders/{name}/fs/dirs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the folder name */
+                name: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read a virtual folder's directory
+         * @description Returns the contents of a directory of the specified virtual folder, read-only. Requires the manage_folders and view_user_files permissions
+         */
+        get: operations["admin_get_folder_dir_contents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/folders/{name}/fs/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the folder name */
+                name: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Download a virtual folder's file
+         * @description Returns the contents of a file of the specified virtual folder. Range requests are supported. Requires the manage_folders and view_user_files permissions
+         */
+        get: operations["admin_download_folder_file"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/folders/{name}": {
         parameters: {
             query?: never;
@@ -4861,6 +4907,79 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalServerError"];
+            default: components["responses"]["DefaultResponse"];
+        };
+    };
+    admin_get_folder_dir_contents: {
+        parameters: {
+            query?: {
+                /** @description Path to the folder to read, URL encoded. If empty or missing the folder root is assumed */
+                path?: string;
+            };
+            header?: never;
+            path: {
+                /** @description the folder name */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirEntry"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+            default: components["responses"]["DefaultResponse"];
+        };
+    };
+    admin_download_folder_file: {
+        parameters: {
+            query: {
+                /** @description Path to the file to download, URL encoded */
+                path: string;
+            };
+            header?: never;
+            path: {
+                /** @description the folder name */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+            /** @description successful operation */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             500: components["responses"]["InternalServerError"];
             default: components["responses"]["DefaultResponse"];
         };

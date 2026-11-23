@@ -30,6 +30,11 @@ export interface InputProps
   size?: 'sm' | 'md';
   /** Class on the bordered box. */
   controlClassName?: string;
+  /**
+   * Button(s) shown next to the box, aligned with it (not with the label or
+   * the hint). Use this instead of placing a Button beside the field.
+   */
+  action?: ReactNode;
 }
 
 /** Text input with label/hint/error. Only text-like types are allowed. */
@@ -44,6 +49,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     controlClassName,
     prefix,
     suffix,
+    action,
     mono,
     size = 'md',
     className,
@@ -66,31 +72,62 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       labelAside={labelAside}
       className={wrapperClassName}
     >
-      <div
-        className={cx(
-          'c-control',
-          size === 'sm' && 'c-control--sm',
-          mono && 'c-control--mono',
-          f.invalid && 'is-invalid',
-          disabled && 'is-disabled',
-          controlClassName,
-        )}
-      >
-        {prefix != null && <span className="c-control__affix">{prefix}</span>}
-        <input
-          ref={ref}
-          id={f.id}
-          type={type}
-          className={cx('c-control__input', className)}
-          required={required}
-          disabled={disabled}
-          aria-invalid={f.invalid || undefined}
-          aria-describedby={cx(ariaDescribedBy, f.describedBy) || undefined}
-          spellCheck={mono ? false : rest.spellCheck}
-          {...rest}
-        />
-        {suffix != null && <span className="c-control__affix">{suffix}</span>}
-      </div>
+      {action != null ? (
+        <div className="c-control-row">
+        <div
+          className={cx(
+            'c-control',
+            size === 'sm' && 'c-control--sm',
+            mono && 'c-control--mono',
+            f.invalid && 'is-invalid',
+            disabled && 'is-disabled',
+            controlClassName,
+          )}
+        >
+          {prefix != null && <span className="c-control__affix">{prefix}</span>}
+          <input
+            ref={ref}
+            id={f.id}
+            type={type}
+            className={cx('c-control__input', className)}
+            required={required}
+            disabled={disabled}
+            aria-invalid={f.invalid || undefined}
+            aria-describedby={cx(ariaDescribedBy, f.describedBy) || undefined}
+            spellCheck={mono ? false : rest.spellCheck}
+            {...rest}
+          />
+          {suffix != null && <span className="c-control__affix">{suffix}</span>}
+        </div>
+          <div className="c-control-row__action">{action}</div>
+        </div>
+      ) : (
+        <div
+          className={cx(
+            'c-control',
+            size === 'sm' && 'c-control--sm',
+            mono && 'c-control--mono',
+            f.invalid && 'is-invalid',
+            disabled && 'is-disabled',
+            controlClassName,
+          )}
+        >
+          {prefix != null && <span className="c-control__affix">{prefix}</span>}
+          <input
+            ref={ref}
+            id={f.id}
+            type={type}
+            className={cx('c-control__input', className)}
+            required={required}
+            disabled={disabled}
+            aria-invalid={f.invalid || undefined}
+            aria-describedby={cx(ariaDescribedBy, f.describedBy) || undefined}
+            spellCheck={mono ? false : rest.spellCheck}
+            {...rest}
+          />
+          {suffix != null && <span className="c-control__affix">{suffix}</span>}
+        </div>
+      )}
     </Field>
   );
 });

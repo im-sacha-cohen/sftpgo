@@ -1,26 +1,123 @@
+/* ---------- Layout: list + side panel ---------- */
+.fp-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.fp-layout.has-panel {
+  grid-template-columns: minmax(0, 1fr) clamp(360px, 34vw, 480px);
+}
+.fp-layout.has-panel:has(.fp-panel.is-wide) {
+  grid-template-columns: minmax(0, 1fr) clamp(420px, 58vw, 980px);
+}
+.fp-layout__main {
+  min-width: 0;
+}
+
+/* ---------- Panel ---------- */
+.fp-panel {
+  position: sticky;
+  top: 84px;
+  max-height: calc(100vh - 104px);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  animation: fp-in 180ms var(--ease);
+}
+@keyframes fp-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fp-panel {
+    animation: none;
+  }
+}
+.fp-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 12px 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.fp-panel__icon {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent-ink, var(--tx));
+}
+.fp-panel__titles {
+  flex: 1;
+  min-width: 0;
+}
+.fp-panel__name {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fp-panel__meta {
+  margin: 2px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--tx-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fp-panel__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px 16px;
+}
+.fp-panel__foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+}
+
+/* ---------- Viewers ---------- */
 .fp {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 180px;
+  min-height: 200px;
 }
-.fp__img,
-.fp__video {
+.fp--text,
+.fp--pdf {
+  align-items: stretch;
+}
+.fp__img {
   max-width: 100%;
-  max-height: 64vh;
+  max-height: calc(100vh - 280px);
   object-fit: contain;
-  border-radius: var(--r);
+  border-radius: 10px;
   background: var(--field);
-}
-.fp__video {
-  width: 100%;
-  background: #000;
 }
 .fp__pdf {
   width: 100%;
-  height: 66vh;
+  height: calc(100vh - 260px);
+  min-height: 360px;
   border: 1px solid var(--line);
-  border-radius: var(--r);
+  border-radius: 10px;
   background: var(--field);
 }
 .fp__text-wrap {
@@ -31,12 +128,10 @@
 }
 .fp__text {
   width: 100%;
-  max-height: 62vh;
   margin: 0;
   padding: 12px;
-  overflow: auto;
   border: 1px solid var(--line);
-  border-radius: var(--r);
+  border-radius: 10px;
   background: var(--field);
   font-size: var(--fs-sm);
   line-height: 1.55;
@@ -46,43 +141,40 @@
 .fp__note {
   font-size: var(--fs-sm);
   color: var(--tx-3);
-}
-.fp__audio {
-  width: 100%;
-  max-width: 520px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  padding: 16px 0;
-}
-.fp__audio-art {
-  width: 120px;
-  height: 120px;
-  border-radius: var(--r-xl);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent-soft);
-  color: var(--tx);
-}
-.fp__audio-name {
-  font-weight: 600;
   text-align: center;
-  word-break: break-word;
-}
-.fp__audio audio {
-  width: 100%;
 }
 .fp-nav {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   margin-right: auto;
 }
 .fp-nav__pos {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
   color: var(--tx-3);
-  min-width: 48px;
+  min-width: 44px;
   text-align: center;
+}
+
+/* ---------- Small screens: the panel covers the page ---------- */
+@media (max-width: 900px) {
+  .fp-layout.has-panel,
+  .fp-layout.has-panel:has(.fp-panel.is-wide) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fp-panel {
+    position: fixed;
+    inset: 0;
+    top: 0;
+    z-index: 60;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+  .fp-panel__wide {
+    display: none;
+  }
+  .fp__img {
+    max-height: calc(100vh - 200px);
+  }
 }

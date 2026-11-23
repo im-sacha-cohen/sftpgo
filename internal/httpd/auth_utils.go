@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/drakkan/sftpgo/v2/internal/common"
 	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
 	"github.com/drakkan/sftpgo/v2/internal/jwt"
 	"github.com/drakkan/sftpgo/v2/internal/logger"
@@ -437,4 +438,15 @@ func validateSignatureForToken(token *jwt.Claims, getter func(string) (string, e
 	logger.Debug(logSender, "", "signature mismatch for username %q, signature %q, token signature %q",
 		token.Username, signature, token.Subject)
 	return errInvalidToken
+}
+
+// setBasicAuthChallenge asks for Basic credentials on a failed token request.
+// Script requests from a web page (the Console) send X-Requested-With and get
+// no challenge: otherwise the browser would pop up its own login dialog when,
+// for example, the Console tries the admin token endpoint for a user account.
+func setBasicAuthChallenge(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		return
+	}
+	w.Header().Set(common.HTTPAuthenticationHeader, basicRealm)
 }

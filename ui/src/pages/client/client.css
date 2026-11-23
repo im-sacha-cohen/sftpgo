@@ -267,6 +267,9 @@
   background: var(--hover);
   box-shadow: inset 3px 0 0 var(--accent);
 }
+.files-row.is-previewing td {
+  background: var(--accent-soft);
+}
 .files-row.is-selected {
   background: var(--active);
 }

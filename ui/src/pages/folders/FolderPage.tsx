@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FolderOpen, MoreHorizontal, RefreshCw, Trash2 } from 'lucide-react';
+import { FsBrowser } from '../userfiles/FsBrowser';
 import {
   Badge,
   Button,
@@ -13,6 +14,7 @@ import {
   Menu,
   SaveBar,
   Skeleton,
+  Tabs,
   useConfirm,
   useToast,
 } from '@/components/ui';
@@ -43,6 +45,12 @@ export default function FolderPage() {
   const confirm = useConfirm();
   const { can } = useAuth();
   const allowed = can('manage_folders');
+  // Existing folders open on their content; settings are one tab away.
+  const [params, setParams] = useSearchParams();
+  const canBrowse = !isNew && can('view_user_files');
+  const tab = canBrowse && params.get('tab') !== 'settings' ? 'files' : 'settings';
+  const browseDir = '/' + (params.get('path') ?? '').split('/').filter(Boolean).join('/');
+  const browseRoute = (d: string) => `/folders/${enc(name)}${d === '/' ? '' : `?path=${encodeURIComponent(d)}`}`;
 
   const query = useQuery({
     queryKey: ['folders', name],
@@ -303,8 +311,21 @@ export default function FolderPage() {
             />
           ) : undefined
         }
-      />
-      {!isNew && query.isLoading ? (
+      >
+        {canBrowse && (
+          <Tabs
+            tabs={[
+              { id: 'files', label: 'Files' },
+              { id: 'settings', label: 'Settings' },
+            ]}
+            value={tab}
+            onChange={(v) => setParams(v === 'settings' ? { tab: 'settings' } : {}, { replace: true })}
+          />
+        )}
+      </PageHeader>
+      {tab === 'files' ? (
+        <FsBrowser base={`/folders/${enc(name)}/fs`} cacheKey={['folder-files', name]} dir={browseDir} route={browseRoute} rootLabel={name} />
+      ) : !isNew && query.isLoading ? (
         <Skeleton height={420} />
       ) : side ? (
         <Columns main={main} side={side} />
@@ -312,7 +333,7 @@ export default function FolderPage() {
         <div className="fld-body">{main}</div>
       )}
       <SaveBar
-        dirtyCount={isNew ? (draft.name.trim() ? 1 : 0) : changes}
+        dirtyCount={tab === 'files' ? 0 : isNew ? (draft.name.trim() ? 1 : 0) : changes}
         message={isNew ? t('unsavedNew') : t('unsaved', { n: changes })}
         cancelLabel={tc('cancel')}
         saveLabel={isNew ? tc('create') : tc('save')}

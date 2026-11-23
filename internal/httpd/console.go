@@ -35,11 +35,34 @@ const (
 	consoleIndexFile      = "index.html"
 	consoleConfigMarker   = "<!--sftpgo-config-->"
 	webConsolePathDefault = "/console"
+	consoleStreamWorker   = "stream-sw.js"
 )
+
+func (s *httpdServer) handleConsoleStreamWorker(w http.ResponseWriter, r *http.Request) {
+	fs := getStaticFileSystem(s.staticFilesPath)
+	f, err := fs.Open(path.Join("/", consoleDirName, consoleStreamWorker))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer f.Close()
+	content, err := io.ReadAll(io.LimitReader(f, 256*1024))
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_, _ = w.Write(content)
+}
 
 func (s *httpdServer) setupConsoleRoutes(router chi.Router) {
 	consolePath := path.Join(webBasePath, webConsolePathDefault)
 	handler := s.handleConsoleIndex(consolePath)
+	// The streaming service worker must be served from below the console path
+	// so that its scope covers the console pages.
+	router.Get(path.Join(consolePath, consoleStreamWorker), s.handleConsoleStreamWorker)
 	router.Get(consolePath, handler)
 	router.Get(consolePath+"/*", handler)
 }

@@ -1494,6 +1494,95 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         default:
           $ref: '#/components/responses/DefaultResponse'
+  '/folders/{name}/fs/dirs':
+    parameters:
+      - name: name
+        in: path
+        description: the folder name
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - folders
+      summary: Read a virtual folder's directory
+      description: 'Returns the contents of a directory of the specified virtual folder, read-only. Requires the manage_folders and view_user_files permissions'
+      operationId: admin_get_folder_dir_contents
+      parameters:
+        - in: query
+          name: path
+          description: Path to the folder to read, URL encoded. If empty or missing the folder root is assumed
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DirEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
+  '/folders/{name}/fs/files':
+    parameters:
+      - name: name
+        in: path
+        description: the folder name
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - folders
+      summary: Download a virtual folder's file
+      description: 'Returns the contents of a file of the specified virtual folder. Range requests are supported. Requires the manage_folders and view_user_files permissions'
+      operationId: admin_download_folder_file
+      parameters:
+        - in: query
+          name: path
+          required: true
+          description: Path to the file to download, URL encoded
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: successful operation
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
   '/folders/{name}':
     parameters:
       - name: name
@@ -3539,6 +3628,95 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         default:
           $ref: '#/components/responses/DefaultResponse'
+  '/users/{username}/fs/dirs':
+    parameters:
+      - name: username
+        in: path
+        description: the username
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - users
+      summary: Read a user's directory
+      description: 'Returns the contents of a directory of the specified user, read-only. Requires the view_user_files permission. The user''s own permissions, virtual folders and storage apply'
+      operationId: admin_get_user_dir_contents
+      parameters:
+        - in: query
+          name: path
+          description: Path to the folder to read, URL encoded. If empty or missing the user's start directory is assumed
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DirEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
+  '/users/{username}/fs/files':
+    parameters:
+      - name: username
+        in: path
+        description: the username
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - users
+      summary: Download a user's file
+      description: 'Returns the contents of a file of the specified user. Range requests are supported. Requires the view_user_files permission'
+      operationId: admin_download_user_file
+      parameters:
+        - in: query
+          name: path
+          required: true
+          description: Path to the file to download, URL encoded
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: successful operation
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
   '/users/{username}/forgot-password':
     parameters:
       - name: username
@@ -4892,6 +5070,7 @@ components:
         - view_defender
         - view_events
         - disable_mfa
+        - view_user_files
       description: |
         Admin permissions:
           * `*` - super admin permissions are granted
@@ -4909,6 +5088,7 @@ components:
           * `view_defender` - list the dynamic blocklist is allowed
           * `view_events` - view and search filesystem and provider events is allowed
           * `disable_mfa` - allow to disable two-factor authentication for users
+          * `view_user_files` - list and download the files of users (read-only). Admins bound to a role only reach the users of that role
     FsProviders:
       type: integer
       enum:

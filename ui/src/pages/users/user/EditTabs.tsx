@@ -215,23 +215,23 @@ export function SecurityTab({
         <>
           <Card title={t('credentialsTitle')}>
             <div className="users-stack">
-              <div className="users-pwd">
-                <PasswordInput
-                  label={isNew ? t('password') : t('passwordNew')}
-                  hint={isNew ? t('passwordCreateHint') : draft.has_password ? t('passwordKeep') : undefined}
-                  mono
-                  autoComplete="new-password"
-                  value={draft.password ?? ''}
-                  disabled={readOnly}
-                  error={errors.password}
-                  onChange={(e) => set({ password: e.target.value })}
-                />
-                {!readOnly && (
-                  <Button icon={Wand2} onClick={() => void generate()}>
-                    {t('generate')}
-                  </Button>
-                )}
-              </div>
+              <PasswordInput
+                label={isNew ? t('password') : t('passwordNew')}
+                hint={isNew ? t('passwordCreateHint') : draft.has_password ? t('passwordKeep') : undefined}
+                mono
+                autoComplete="new-password"
+                value={draft.password ?? ''}
+                disabled={readOnly}
+                error={errors.password}
+                onChange={(e) => set({ password: e.target.value })}
+                action={
+                  !readOnly ? (
+                    <Button icon={Wand2} onClick={() => void generate()}>
+                      {t('generate')}
+                    </Button>
+                  ) : undefined
+                }
+              />
               <Switch
                 checked={!!filters.require_password_change}
                 disabled={readOnly}

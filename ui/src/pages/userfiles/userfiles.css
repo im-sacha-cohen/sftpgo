@@ -56,3 +56,6 @@ a.ufiles-path__seg:hover {
 .ufiles-name.is-dir svg {
   color: var(--accent-ink, var(--tx-2));
 }
+.ufiles-row--open td {
+  background: var(--accent-soft);
+}
