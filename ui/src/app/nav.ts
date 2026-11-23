@@ -1,4 +1,5 @@
 import {
+  FolderOpen,
   Activity,
   FileClock,
   FolderTree,
@@ -49,6 +50,7 @@ export const navDict = {
     connections: 'Connexions',
     events: 'Journal',
     users: 'Utilisateurs',
+    userFiles: 'Fichiers des utilisateurs',
     groups: 'Groupes',
     admins: 'Administrateurs',
     roles: 'Rôles',
@@ -79,6 +81,7 @@ export const navDict = {
     connections: 'Connections',
     events: 'Event log',
     users: 'Users',
+    userFiles: 'User files',
     groups: 'Groups',
     admins: 'Administrators',
     roles: 'Roles',
@@ -112,6 +115,7 @@ export const adminNav: NavGroup[] = [
     key: 'gAccounts',
     items: [
       { key: 'users', to: '/users', icon: User, perms: ['view_users', 'add_users', 'edit_users'] },
+      { key: 'userFiles', to: '/user-files', icon: FolderOpen, perms: ['view_user_files'] },
       { key: 'groups', to: '/groups', icon: Users, perms: ['manage_groups'] },
       { key: 'admins', to: '/admins', icon: UserCog, perms: ['manage_admins'] },
       { key: 'roles', to: '/roles', icon: ShieldCheck, perms: ['manage_roles'] },

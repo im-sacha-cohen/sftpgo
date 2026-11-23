@@ -1318,6 +1318,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/{username}/fs/dirs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the username */
+                username: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read a user's directory
+         * @description Returns the contents of a directory of the specified user, read-only. Requires the view_user_files permission. The user's own permissions, virtual folders and storage apply
+         */
+        get: operations["admin_get_user_dir_contents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{username}/fs/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the username */
+                username: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Download a user's file
+         * @description Returns the contents of a file of the specified user. Range requests are supported. Requires the view_user_files permission
+         */
+        get: operations["admin_download_user_file"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/{username}/forgot-password": {
         parameters: {
             query?: never;
@@ -1917,10 +1963,11 @@ export interface components {
          *       * `view_defender` - list the dynamic blocklist is allowed
          *       * `view_events` - view and search filesystem and provider events is allowed
          *       * `disable_mfa` - allow to disable two-factor authentication for users
+         *       * `view_user_files` - list and download the files of users (read-only). Admins bound to a role only reach the users of that role
          *
          * @enum {string}
          */
-        AdminPermissions: "*" | "add_users" | "edit_users" | "del_users" | "view_users" | "view_conns" | "close_conns" | "view_status" | "manage_folders" | "manage_groups" | "quota_scans" | "manage_defender" | "view_defender" | "view_events" | "disable_mfa";
+        AdminPermissions: "*" | "add_users" | "edit_users" | "del_users" | "view_users" | "view_conns" | "close_conns" | "view_status" | "manage_folders" | "manage_groups" | "quota_scans" | "manage_defender" | "view_defender" | "view_events" | "disable_mfa" | "view_user_files";
         /**
          * @description Filesystem providers:
          *       * `0` - Local filesystem
@@ -6329,6 +6376,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+            default: components["responses"]["DefaultResponse"];
+        };
+    };
+    admin_get_user_dir_contents: {
+        parameters: {
+            query?: {
+                /** @description Path to the folder to read, URL encoded. If empty or missing the user's start directory is assumed */
+                path?: string;
+            };
+            header?: never;
+            path: {
+                /** @description the username */
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirEntry"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+            default: components["responses"]["DefaultResponse"];
+        };
+    };
+    admin_download_user_file: {
+        parameters: {
+            query: {
+                /** @description Path to the file to download, URL encoded */
+                path: string;
+            };
+            header?: never;
+            path: {
+                /** @description the username */
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+            /** @description successful operation */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
                 };
             };
             400: components["responses"]["BadRequest"];

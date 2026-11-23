@@ -123,6 +123,15 @@ export default function FilesPage() {
     return list;
   }, [entries, sort, lang]);
 
+  // Files the viewer can open, in the order shown, for previous/next in the viewer.
+  const viewable = useMemo(() => rows.filter((e) => !isDir(e) && previewKind(e.name ?? '')), [rows]);
+  const previewIndex = preview ? viewable.findIndex((e) => joinPath(dir, e.name ?? '') === preview.path) : -1;
+  const showPreview = (e: DirEntry) => {
+    const kind = previewKind(e.name ?? '', e.size ?? 0);
+    if (kind) setPreview({ path: joinPath(dir, e.name ?? ''), size: e.size ?? 0, kind });
+    return !!kind;
+  };
+
   const byName = useMemo(() => new Map(entries.map((e) => [e.name ?? '', e])), [entries]);
   const selection = useMemo(() => rows.filter((r) => selected.has(r.name ?? '')), [rows, selected]);
   const selNames = selection.map((r) => r.name ?? '');
@@ -172,11 +181,8 @@ export default function FilesPage() {
 
   const segs = splitPath(dir);
   const title = dir === '/' ? t('title') : baseName(dir);
-  useBreadcrumbs(
-    dir === '/'
-      ? [{ label: t('title') }]
-      : [{ label: t('title'), to: '/files' }, ...segs.map((s, i) => ({ label: s, to: i < segs.length - 1 ? filesRoute('/' + segs.slice(0, i + 1).join('/')) : undefined }))],
-  );
+  // The path is shown in the page itself (design v2): give the shell the title only.
+  useBreadcrumbs([{ label: title }]);
   useEffect(() => {
     document.title = `${title} · SFTPGo`;
   }, [title]);
@@ -208,9 +214,7 @@ export default function FilesPage() {
       goTo(joinPath(dir, name), viaKeyboard ? true : undefined);
       return;
     }
-    const kind = previewKind(name, e.size ?? 0);
-    if (kind) setPreview({ path: joinPath(dir, name), size: e.size ?? 0, kind });
-    else void download([name]);
+    if (!showPreview(e)) void download([name]);
   };
 
   const startUpload = async (files: QueuedFile[]) => {
@@ -304,7 +308,7 @@ export default function FilesPage() {
     const first = byName.get(names[0]);
     setShareTarget({
       paths: names.map((n) => joinPath(dir, n)),
-      label: names.length === 1 ? names[0] : String(names.length),
+      label: names.length === 1 ? names[0] : `${names[0]} +${names.length - 1}`,
       isDir: names.length === 1 && !!first && isDir(first),
     });
   };
@@ -576,6 +580,12 @@ export default function FilesPage() {
   } else {
     content = (
       <table className="files-table" aria-label={title}>
+        <colgroup>
+          <col className="files-c-name" />
+          <col className="files-c-mod" />
+          <col className="files-c-size" />
+          <col className="files-c-act" />
+        </colgroup>
         <thead>{head}</thead>
         <tbody>
           {rows.map((e, idx) => {
@@ -770,6 +780,9 @@ export default function FilesPage() {
           kind={preview.kind}
           onClose={() => setPreview(null)}
           onDownload={() => void download([baseName(preview.path)])}
+          onPrev={previewIndex > 0 ? () => showPreview(viewable[previewIndex - 1]) : undefined}
+          onNext={previewIndex >= 0 && previewIndex < viewable.length - 1 ? () => showPreview(viewable[previewIndex + 1]) : undefined}
+          position={previewIndex >= 0 ? `${previewIndex + 1} / ${viewable.length}` : undefined}
         />
       )}
       {shareTarget && (

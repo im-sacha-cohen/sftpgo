@@ -67,7 +67,7 @@ export type ShareDialogProps =
   | {
       mode: 'create';
       paths: string[];
-      /** Item name for the title and the share name; a number for several items. */
+      /** Item name, used for the title and as the share name ("a +2" for several items). */
       label: string;
       /** Single folder? Unknown = checked with the API. */
       isDir?: boolean;

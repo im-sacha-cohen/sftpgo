@@ -268,7 +268,7 @@ export function SharesList() {
           key={dialog.paths.join('\n')}
           mode="create"
           paths={dialog.paths}
-          label={dialog.paths.length === 1 ? baseName(dialog.paths[0]) : String(dialog.paths.length)}
+          label={dialog.paths.length === 1 ? baseName(dialog.paths[0]) : `${baseName(dialog.paths[0])} +${dialog.paths.length - 1}`}
           onCreated={(newId) => routeId === 'new' && writeCreated(search, newId)}
           onClose={closeDialog}
         />

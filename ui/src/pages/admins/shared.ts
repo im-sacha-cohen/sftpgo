@@ -15,6 +15,7 @@ export const PERMISSIONS = [
   'view_defender',
   'view_events',
   'disable_mfa',
+  'view_user_files',
 ] as const;
 
 export const dict = {
@@ -87,6 +88,7 @@ export const dict = {
     perm_view_defender: 'Voir le Defender',
     perm_view_events: 'Voir le journal',
     perm_disable_mfa: 'Désactiver la 2FA des utilisateurs',
+    perm_view_user_files: 'Consulter les fichiers des utilisateurs',
   },
   en: {
     title: 'Administrators',
@@ -156,6 +158,7 @@ export const dict = {
     perm_view_defender: 'View the Defender',
     perm_view_events: 'View the event log',
     perm_disable_mfa: 'Disable users’ 2FA',
+    perm_view_user_files: 'View and play users’ files',
   },
 } satisfies Dict;
 
