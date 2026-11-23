@@ -127,3 +127,67 @@ More information about [compliance](https://sftpgo.com/compliance.html).
 ## Copyright
 
 Copyright (C) 2019 - 2026 Nicola Murino
+
+## Fork gly-logger : URL signées pour les enregistrements
+
+Ce fork ajoute un petit serveur HTTP, en lecture seule, qui sert les enregistrements de gly-logger derrière une URL signée. L'API gly-logger décide qui peut écouter et signe l'URL. Ce serveur vérifie seulement la signature, avec un secret partagé : pas d'utilisateurs, pas de base, aucun appel à l'API.
+
+Le code est dans [`internal/glyfiles`](internal/glyfiles/glyfiles.go). Le seul point d'accroche est un appel à `glyfiles.Start` dans `internal/service/service.go`. Le serveur tourne sur son propre port, à côté du serveur HTTP de SFTPGo. SFTP, l'admin et le WebClient ne changent pas, et les logs d'accès de SFTPGo ne voient jamais une URL signée.
+
+### Format de signature v1
+
+URL signée :
+
+    https://files-gly-logger.sacha-cohen.fr/19112026_1700.mp3?exp=1798761600&u=01JD8X3K9QF2M7Y4T6W0ZB5N1R&sig=QTx7c4snCZ_mM7MIQLnsa_AJ4JvXvdPrsHxf1rraJcY
+
+- `exp` : heure d'expiration en secondes Unix (UTC), uniquement des chiffres. L'URL est valide tant que l'heure actuelle est strictement inférieure à `exp`.
+- `u` : le ULID de l'utilisateur gly-logger, exactement 26 caractères en base32 de Crockford majuscule (`[0-9A-HJKMNP-TV-Z]`), premier caractère entre `0` et `7`. Pas de normalisation : les minuscules sont refusées.
+- `path` : le chemin de l'URL **décodé** (`r.URL.Path` en Go), avec le `/` initial, tel que demandé, avant tout mappage vers le disque.
+- Message signé : les octets UTF-8 de `"v1\n" + exp + "\n" + u + "\n" + path`.
+- `sig` : HMAC-SHA256 du message, encodé en base64url sans `=` final (43 caractères).
+- Clé : les octets bruts de `GLY_FILES_SIGNING_KEY`, sans suppression des espaces ni des sauts de ligne.
+
+Vecteurs de test, clé `gly-test-secret-not-for-prod` (publique, réservée aux tests) :
+
+| exp        | u                          | path               | sig                                         |
+| ---------- | -------------------------- | ------------------ | ------------------------------------------- |
+| 1798761600 | 01JD8X3K9QF2M7Y4T6W0ZB5N1R | /19112026_1700.mp3 | QTx7c4snCZ_mM7MIQLnsa_AJ4JvXvdPrsHxf1rraJcY |
+| 1798761600 | 01JD8X4A2BC3DE5FG6HJ7KM8NP | /19112026_1700.mp3 | 8czUoy7GkGMADyzxBY0NvxumgGGpDQuCivTwM87EmAs |
+| 1798765200 | 01JD8X3K9QF2M7Y4T6W0ZB5N1R | /19112026_1800.mp3 | XQxRsl7dJzKFdZ7UTNAYwLPIO-8iWFSCc9-2SFqqq_M |
+
+Le format v1 ne change jamais. Une évolution devient `v2` et se décide avec l'API.
+
+### Vérification
+
+Seuls GET et HEAD sont acceptés (sinon 405). Les autres paramètres de la requête sont ignorés. La réponse est **403**, corps vide, `Cache-Control: private, no-store`, si :
+
+- `exp`, `u` ou `sig` manque, apparaît plusieurs fois ou est mal formé ;
+- `exp` est passé, ou à plus de `GLY_FILES_SIGNING_MAX_TTL` secondes dans le futur ;
+- le chemin contient un segment `..` ou `.`, un `//`, un `\` ou un octet nul (contrôle fait dans tous les modes, même `off` : il protège le disque) ;
+- la signature ne correspond ni à la clé courante ni à la clé précédente (comparaison en temps constant).
+
+Si la signature est valide, le fichier est servi avec `Range` (206), `HEAD` et `If-Modified-Since`. Chaque requête partielle est revérifiée. Toutes les réponses portent `Cache-Control: private, no-store`, pour qu'aucun cache partagé (proxy, CDN) n'en garde une copie. Une signature valide pour un fichier absent ou un dossier donne 404. Aucune liste de dossier n'est servie.
+
+Chaque requête est loguée (expéditeur `glyfiles`) avec le chemin, `u`, le motif du refus, le statut et l'en-tête `Range`. La query string et `sig` ne sont jamais logués.
+
+### Variables d'environnement
+
+| Variable | Défaut | Rôle |
+| --- | --- | --- |
+| `GLY_FILES_ADDR` | vide | Adresse d'écoute, par exemple `:8090`. Vide : la fonctionnalité est désactivée et rien d'autre n'est demandé. |
+| `GLY_FILES_ROOT` | | Dossier servi : `/<path>` de l'URL correspond à `<GLY_FILES_ROOT>/<path>`. Pour l'utilisateur SFTP `gly-logger`, c'est son dossier personnel (backend local uniquement). Obligatoire si `GLY_FILES_ADDR` est défini. |
+| `GLY_FILES_SIGNING_MODE` | `enforce` | `enforce` : refuse. `observe` : sert le fichier dans tous les cas mais logue `observe-would-refuse` avec le motif. `off` : aucune vérification de signature. |
+| `GLY_FILES_SIGNING_KEY` | | Clé courante, au moins 32 caractères. Si elle manque ou est trop courte et que le mode n'est pas `off`, SFTPGo refuse de démarrer. |
+| `GLY_FILES_SIGNING_KEY_PREVIOUS` | vide | Ancienne clé, acceptée aussi pendant un changement de clé (au moins 32 caractères si elle est définie). |
+| `GLY_FILES_SIGNING_MAX_TTL` | `86400` | Écart maximum en secondes entre maintenant et `exp`. |
+
+### Changer de clé
+
+1. Mettre la nouvelle clé dans `GLY_FILES_SIGNING_KEY` et l'ancienne dans `GLY_FILES_SIGNING_KEY_PREVIOUS`, redémarrer, puis faire signer l'API avec la nouvelle clé.
+2. Attendre au moins `GLY_FILES_SIGNING_MAX_TTL` secondes, pour que toutes les URL signées avec l'ancienne clé aient expiré.
+3. Retirer `GLY_FILES_SIGNING_KEY_PREVIOUS` et redémarrer.
+
+### Points d'attention au déploiement
+
+- Un reverse proxy ou un CDN (Traefik, Cloudflare) peut écrire l'URL complète, `sig` comprise, dans ses propres logs : masquer la query string ou couper ces logs pour ce domaine.
+- Ne mettre aucune règle de cache qui ignore la query string ou force la mise en cache (« Cache Everything », Edge TTL) sur ce domaine : un fichier en cache serait servi sans vérification.
