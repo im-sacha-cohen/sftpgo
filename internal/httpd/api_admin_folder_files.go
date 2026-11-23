@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 
 	"github.com/go-chi/render"
 	"github.com/rs/xid"
@@ -132,6 +133,17 @@ func adminGetFolderFile(w http.ResponseWriter, r *http.Request) {
 		}
 		render.JSON(w, r.WithContext(ctx), resp)
 	}
+}
+
+// getSpacesDefaults returns where the Console suggests to store new spaces: a
+// "spaces" directory next to the users base dir (/srv/sftpgo/spaces in the
+// Docker image). base_dir is empty when no users base dir is configured.
+func getSpacesDefaults(w http.ResponseWriter, r *http.Request) {
+	baseDir := ""
+	if usersBaseDir := dataprovider.GetUsersBaseDir(); usersBaseDir != "" {
+		baseDir = filepath.Join(filepath.Dir(filepath.Clean(usersBaseDir)), "spaces")
+	}
+	render.JSON(w, r, map[string]string{"base_dir": baseDir})
 }
 
 func folderPermissions(write bool) map[string][]string {

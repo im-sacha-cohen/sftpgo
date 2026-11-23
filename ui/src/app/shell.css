@@ -218,3 +218,11 @@
     padding: 16px 16px 0;
   }
 }
+.shell__menu-theme {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.shell__menu-theme svg {
+  color: var(--accent-ink);
+}

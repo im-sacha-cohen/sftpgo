@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LogOut, Moon, Search, Settings, Sun, SunMoon, User as UserIcon } from 'lucide-react';
+import { Check, LogOut, Moon, Search, Settings, Sun, SunMoon, User as UserIcon } from 'lucide-react';
 import { Button, CommandPalette, IconButton, Kbd, Menu, Modal, PasswordInput, Input } from '@/components/ui';
 import type { Session } from '@/api/client';
 import { useAuth } from '@/lib/auth';
 import { useT, type Dict } from '@/lib/i18n';
-import { useTheme } from '@/lib/theme';
+import { useTheme, type ThemePref } from '@/lib/theme';
 import { adminNav, adminPrimary, navDict, userNav, type NavGroup } from './nav';
 import { Logo } from './Logo';
 import { useLayout, type Command } from './layout-context';
@@ -150,7 +150,6 @@ export function Shell() {
   if (!session) return null;
 
   const accountPath = session.kind === 'admin' ? '/profile' : '/account';
-  const ThemeIcon = pref === 'dark' ? Moon : pref === 'light' ? Sun : SunMoon;
   const identity =
     session.kind === 'admin'
       ? session.role
@@ -160,10 +159,27 @@ export function Shell() {
         ? t('kindUserRole', { role: session.role })
         : t('kindUser');
 
-  const settingsItems = secondary.flatMap((g, gi) => [
-    ...(gi > 0 ? (['separator'] as const) : []),
-    ...g.items.map((i) => ({ label: tn(i.key), icon: i.icon, onSelect: () => navigate(i.to) })),
-  ]);
+  const themeItem = (value: ThemePref, label: string, icon: typeof Sun) => ({
+    label: (
+      <span className="shell__menu-theme">
+        {t('theme')} · {label}
+        {pref === value && <Check size={15} strokeWidth={2.4} aria-label="(current)" />}
+      </span>
+    ),
+    textValue: `${t('theme')} ${label}`,
+    icon,
+    onSelect: () => setPref(value),
+  });
+  const settingsItems = [
+    ...secondary.flatMap((g, gi) => [
+      ...(gi > 0 ? (['separator'] as const) : []),
+      ...g.items.map((i) => ({ label: tn(i.key), icon: i.icon, onSelect: () => navigate(i.to) })),
+    ]),
+    ...(secondary.length ? (['separator'] as const) : []),
+    themeItem('light', t('themeLight'), Sun),
+    themeItem('dark', t('themeDark'), Moon),
+    themeItem('system', t('themeSystem'), SunMoon),
+  ];
 
   return (
     <div className="shell">
@@ -185,15 +201,7 @@ export function Shell() {
               <span className="shell__search-text">{t('searchShort')}</span>
               <Kbd>⌘K</Kbd>
             </button>
-            <Menu
-              trigger={<IconButton icon={ThemeIcon} label={t('theme')} variant="ghost" />}
-              items={[
-                { label: t('themeLight'), icon: Sun, onSelect: () => setPref('light') },
-                { label: t('themeDark'), icon: Moon, onSelect: () => setPref('dark') },
-                { label: t('themeSystem'), icon: SunMoon, onSelect: () => setPref('system') },
-              ]}
-            />
-            {settingsItems.length > 0 && <Menu trigger={<IconButton icon={Settings} label={tn('settingsMenu')} variant="ghost" />} items={settingsItems} />}
+            <Menu trigger={<IconButton icon={Settings} label={tn('settingsMenu')} variant="ghost" />} items={settingsItems} minWidth={220} />
             <Menu
               trigger={
                 <button type="button" className="shell__user" aria-label={session.username}>

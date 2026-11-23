@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Button, Input, Modal, Textarea, useToast } from '@/components/ui';
-import { spaceApi, useInvalidateAccess } from './api';
+import { spaceApi, useInvalidateAccess, useSpacesBaseDir } from './api';
 import { slug } from './model';
 import { errorText } from './parts';
-
-const ROOT = '/srv/sftpgo/spaces/';
 
 interface Props {
   open: boolean;
@@ -16,6 +14,7 @@ interface Props {
 
 export function NewSpaceDialog({ open, onClose, taken, onCreated }: Props) {
   const toast = useToast();
+  const root = useSpacesBaseDir(open);
   const invalidate = useInvalidateAccess();
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
@@ -34,7 +33,7 @@ export function NewSpaceDialog({ open, onClose, taken, onCreated }: Props) {
   }, [open]);
 
   const folderName = name.trim() ? slug(name) : '';
-  const shownLocation = locationEdited ? location : folderName ? ROOT + folderName : '';
+  const shownLocation = locationEdited ? location : folderName && root ? root + folderName : '';
 
   const nameErr = !name.trim()
     ? 'Give the space a name.'
@@ -107,7 +106,7 @@ export function NewSpaceDialog({ open, onClose, taken, onCreated }: Props) {
           mono
           required
           value={shownLocation}
-          placeholder={ROOT + 'name'}
+          placeholder={(root || '/path/on/the/server/') + 'name'}
           onChange={(e) => {
             setLocationEdited(true);
             setLocation(e.target.value);

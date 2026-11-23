@@ -207,6 +207,17 @@ export async function setUserAccess(username: string, space: string, path: strin
   await api.put(`/users/${encodeURIComponent(username)}`, next);
 }
 
+/** Sets, or removes with a null role, the role on a folder of the user's own files. */
+export async function setUserPathRole(username: string, path: string, role: RoleId | null) {
+  const u = await api.get<User>(`/users/${encodeURIComponent(username)}`);
+  const p = normPath(path);
+  const perms = { ...(u.permissions ?? {}) } as Record<string, Permission[]>;
+  if (role) perms[p] = roleById(role).perms;
+  else delete perms[p];
+  if (!perms['/']) perms['/'] = ['list', 'download'];
+  await api.put(`/users/${encodeURIComponent(username)}`, { ...u, permissions: perms });
+}
+
 export async function setGroupAccess(groupName: string, space: string, path: string | null, role: RoleId | null) {
   const g = await api.get<Group>(`/groups/${encodeURIComponent(groupName)}`);
   const next = applyTo(

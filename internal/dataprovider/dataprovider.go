@@ -775,6 +775,11 @@ func HasUsersBaseDir() bool {
 	return config.UsersBaseDir != ""
 }
 
+// GetUsersBaseDir returns the configured users base dir, empty if not set
+func GetUsersBaseDir() string {
+	return config.UsersBaseDir
+}
+
 // Provider defines the interface that data providers must implement.
 type Provider interface {
 	validateUserAndPass(username, password, ip, protocol string) (User, error)

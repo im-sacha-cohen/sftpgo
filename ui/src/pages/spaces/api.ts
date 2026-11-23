@@ -41,6 +41,18 @@ export function useSpaceMembers(folder: SpaceFolder | undefined) {
   });
 }
 
+/** Where new spaces are stored by default, from the server's users base dir. */
+export function useSpacesBaseDir(enabled: boolean) {
+  const q = useQuery({
+    queryKey: ['spaces', 'defaults'],
+    queryFn: ({ signal }) => api.get<{ base_dir: string }>('/spaces/defaults', undefined, signal),
+    enabled,
+    staleTime: Infinity,
+  });
+  const dir = q.data?.base_dir ?? '';
+  return dir ? dir.replace(/\/+$/, '') + '/' : '';
+}
+
 /** Users and groups that can be picked in "Give access". */
 export function usePeople(enabled: boolean) {
   const { can } = useAuth();

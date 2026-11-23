@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Plus, ShieldOff, Trash2, Wand2 } from 'lucide-react';
 import type { BaseVirtualFolder, Group, Role, SupportedProtocols, User, UserFilters, WebClientOptions } from '@/api/types';
 import { Columns } from '@/app/PageHeader';
@@ -25,7 +26,7 @@ import { PermissionMatrix } from '../editors/PermissionMatrix';
 import { StorageEditor } from '../editors/StorageEditor';
 import { VirtualFoldersEditor } from '../editors/VirtualFoldersEditor';
 import { generatePassword, inheritedPermissions, PROTOCOL_LABEL } from '../model';
-import { EffectiveAccess } from './EffectiveAccess';
+import { useEffectiveAccess } from './EffectiveAccess';
 
 export interface TabProps {
   draft: User;
@@ -60,43 +61,74 @@ export function AccessTab({
     for (const p of g?.user_settings?.filters?.denied_protocols ?? []) if (!deniedByGroup.has(p)) deniedByGroup.set(p, m.name ?? '');
   }
 
-  const matrix = (
+  const permCard = (
+    <Card title={isNew || !saved ? t('permTitle') : 'Advanced: permissions per path'}>
+      <PermissionMatrix
+        value={draft.permissions ?? {}}
+        initial={isNew ? undefined : base.permissions ?? {}}
+        inherited={inherited}
+        readOnly={readOnly}
+        onChange={(permissions) => set({ permissions })}
+      />
+    </Card>
+  );
+  const rest = {
+    main: <PatternsCard value={draft.filters ?? {}} disabled={readOnly} onChange={(filters) => set({ filters })} />,
+    side: (
+      <>
+        <ProtocolsCard value={draft.filters ?? {}} disabled={readOnly} deniedByGroup={deniedByGroup} onChange={(filters) => set({ filters })} />
+        <NetworkCard value={draft.filters ?? {}} disabled={readOnly} onChange={(filters) => set({ filters })} />
+      </>
+    ),
+  };
+
+  if (isNew || !saved)
+    return (
+      <Columns
+        main={
+          <>
+            {permCard}
+            {rest.main}
+          </>
+        }
+        side={rest.side}
+      />
+    );
+  return <SavedAccess user={saved} dirty={dirty} onReload={onReload} permCard={permCard} rest={rest} />;
+}
+
+/** Access tab of an existing user: their real access first, the raw rules below, in one grid. */
+function SavedAccess({
+  user,
+  dirty,
+  onReload,
+  permCard,
+  rest,
+}: {
+  user: User;
+  dirty: boolean;
+  onReload: () => Promise<void>;
+  permCard: ReactNode;
+  rest: { main: ReactNode; side: ReactNode };
+}) {
+  const view = useEffectiveAccess({ user, dirty, onChanged: onReload });
+  return (
     <Columns
       main={
         <>
-          <Card title={t('permTitle')}>
-            <PermissionMatrix
-              value={draft.permissions ?? {}}
-              initial={isNew ? undefined : base.permissions ?? {}}
-              inherited={inherited}
-              readOnly={readOnly}
-              onChange={(permissions) => set({ permissions })}
-            />
-          </Card>
-          <PatternsCard value={draft.filters ?? {}} disabled={readOnly} onChange={(filters) => set({ filters })} />
+          {view.tree}
+          {permCard}
+          {rest.main}
         </>
       }
       side={
         <>
-          <ProtocolsCard
-            value={draft.filters ?? {}}
-            disabled={readOnly}
-            deniedByGroup={deniedByGroup}
-            onChange={(filters) => set({ filters })}
-          />
-          <NetworkCard value={draft.filters ?? {}} disabled={readOnly} onChange={(filters) => set({ filters })} />
+          {view.checks}
+          {view.status}
+          {rest.side}
         </>
       }
     />
-  );
-
-  if (isNew || !saved) return matrix;
-  return (
-    <div className="users-access">
-      <EffectiveAccess user={saved} dirty={dirty} onChanged={onReload} />
-      <h2 className="users-access__advanced">Advanced: permissions per path</h2>
-      {matrix}
-    </div>
   );
 }
 

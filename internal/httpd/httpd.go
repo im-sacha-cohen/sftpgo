@@ -57,6 +57,7 @@ const (
 	userPath                              = "/api/v2/users"
 	versionPath                           = "/api/v2/version"
 	folderPath                            = "/api/v2/folders"
+	spacesDefaultsPath                    = "/api/v2/spaces/defaults"
 	groupPath                             = "/api/v2/groups"
 	serverStatusPath                      = "/api/v2/status"
 	dumpDataPath                          = "/api/v2/dumpdata"

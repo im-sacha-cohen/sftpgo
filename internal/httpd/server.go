@@ -1449,6 +1449,7 @@ func (s *httpdServer) setupRESTAPIRoutes() {
 					Post(userPath+"/{username}/fs/files/upload", adminFsUpload(getAdminUserConnection))
 				router.With(s.checkPerms(dataprovider.PermAdminViewUserFiles), s.checkPerms(dataprovider.PermAdminChangeUsers)).
 					Post(userPath+"/{username}/fs/file-actions/move", adminFsMove(getAdminUserConnection))
+				router.With(s.checkPerms(dataprovider.PermAdminManageFolders)).Get(spacesDefaultsPath, getSpacesDefaults)
 				router.With(s.checkPerms(dataprovider.PermAdminManageFolders)).Get(folderPath, getFolders)
 				router.With(s.checkPerms(dataprovider.PermAdminManageFolders)).Get(folderPath+"/{name}", getFolderByName)
 				router.With(s.checkPerms(dataprovider.PermAdminManageFolders)).Post(folderPath, addFolder)

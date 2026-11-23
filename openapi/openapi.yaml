@@ -1401,6 +1401,29 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         default:
           $ref: '#/components/responses/DefaultResponse'
+  /spaces/defaults:
+    get:
+      tags:
+        - folders
+      summary: Get the defaults for new spaces
+      description: Returns where the Console suggests to store new spaces (a "spaces" directory next to the users base dir). base_dir is empty if no users base dir is configured
+      operationId: get_spaces_defaults
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  base_dir:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
   /folders:
     get:
       tags:
