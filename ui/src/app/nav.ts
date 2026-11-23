@@ -67,6 +67,7 @@ export const navDict = {
     account: 'Mon compte',
     activity: 'Activité',
     foldersShort: 'Dossiers',
+    spaces: 'Espaces',
     settingsMenu: 'Réglages et sécurité',
   },
   en: {
@@ -86,7 +87,7 @@ export const navDict = {
     admins: 'Administrators',
     roles: 'Roles',
     apikeys: 'API keys',
-    folders: 'Virtual folders',
+    folders: 'Virtual folders (advanced)',
     rules: 'Rules',
     actions: 'Actions',
     defender: 'Defender',
@@ -98,6 +99,7 @@ export const navDict = {
     account: 'My account',
     activity: 'Activity',
     foldersShort: 'Folders',
+    spaces: 'Spaces',
     settingsMenu: 'Settings and security',
   },
 } satisfies Dict;
@@ -124,7 +126,10 @@ export const adminNav: NavGroup[] = [
   },
   {
     key: 'gStorage',
-    items: [{ key: 'folders', to: '/folders', icon: FolderTree, perms: ['manage_folders'] }],
+    items: [
+      { key: 'spaces', to: '/spaces', icon: FolderTree, perms: ['manage_folders'] },
+      { key: 'folders', to: '/folders', icon: FolderTree, perms: ['manage_folders'] },
+    ],
   },
   {
     key: 'gAutomation',
@@ -169,6 +174,6 @@ export const storageIcon = HardDrive;
 export const adminPrimary: { to: string; as?: keyof typeof navDict.fr }[] = [
   { to: '/users' },
   { to: '/groups' },
-  { to: '/folders', as: 'foldersShort' },
+  { to: '/spaces' },
   { to: '/overview', as: 'activity' },
 ];

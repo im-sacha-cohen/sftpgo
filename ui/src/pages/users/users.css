@@ -814,3 +814,219 @@ td.users-matrix__path {
   gap: 6px;
   justify-content: flex-end;
 }
+
+/* ---------- Access tab: effective access ---------- */
+.users-access {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.users-access__advanced {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--tx-2);
+}
+.users-eff {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-5);
+  align-items: flex-start;
+}
+.users-eff__tree {
+  flex: 3 1 460px;
+  min-width: 0;
+}
+.users-eff__side {
+  flex: 2 1 300px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.users-eff__pad {
+  padding: 0 24px 24px;
+}
+.users-eff__rows {
+  list-style: none;
+  padding: 0 12px 12px;
+  margin: 0;
+}
+.users-eff__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: 10px 12px 10px calc(12px + var(--eff-depth, 0) * 24px);
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  background: none;
+  color: var(--tx);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.users-eff__row:hover {
+  background: var(--hover);
+}
+.users-eff__row.is-selected {
+  background: var(--active);
+  border-color: var(--line-strong);
+}
+.users-eff__row:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.users-eff__icon {
+  flex: none;
+  color: var(--tx-3);
+}
+.users-eff__icon.is-space {
+  color: var(--accent-strong);
+}
+.users-eff__main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.users-eff__path {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.users-eff__what {
+  color: var(--tx-3);
+  font-size: var(--fs-xs);
+}
+.users-eff__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex: none;
+  max-width: 50%;
+  text-align: right;
+}
+.users-eff__source {
+  color: var(--tx-3);
+  font-size: var(--fs-xs);
+}
+.users-eff__checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.users-eff__check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+.users-eff__mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: 50%;
+}
+.users-eff__mark.is-ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.users-eff__mark.is-no {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.users-eff__check-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.users-eff__check-label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.users-eff__reason {
+  color: var(--tx-3);
+  font-size: var(--fs-xs);
+}
+.users-eff__issues {
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--note);
+}
+.users-eff__issues ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: var(--sp-3);
+}
+.users-eff__issues-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+  color: var(--accent-ink);
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+.users-eff__issue {
+  padding-left: var(--sp-3);
+  border-left: 3px solid var(--accent);
+  font-size: var(--fs-sm);
+  color: var(--tx-2);
+}
+.users-eff__issue.is-bad {
+  border-left-color: var(--bad);
+}
+.users-eff__fix {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.users-eff__hint {
+  color: var(--tx-3);
+  font-size: var(--fs-xs);
+}
+.users-eff__ok {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 14px 20px;
+  border-radius: 16px;
+  background: var(--ok-soft);
+  color: var(--ok);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+@media (max-width: 560px) {
+  .users-eff__row {
+    flex-wrap: wrap;
+    padding-left: calc(12px + var(--eff-depth, 0) * 14px);
+  }
+  .users-eff__right {
+    flex-basis: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2);
+    max-width: none;
+    text-align: left;
+    padding-left: 30px;
+  }
+}
+.users-eff__tree > .c-card__header {
+  flex-wrap: wrap;
+}
+.users-eff__tree > .c-card__header > .c-card__heading {
+  flex: 1 1 260px;
+}

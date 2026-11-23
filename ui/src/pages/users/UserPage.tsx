@@ -441,7 +441,18 @@ export default function UserPage() {
 
       <div role="tabpanel" aria-label={tab}>
         {tab === 'overview' && <OverviewTab user={draft} isNew={isNew} conns={conns} groups={groupsQ.data} />}
-        {tab === 'access' && <AccessTab {...tabProps} />}
+        {tab === 'access' && (
+          <AccessTab
+            {...tabProps}
+            saved={isNew ? undefined : source.data}
+            dirty={dirty > 0}
+            onReload={async () => {
+              const fresh = await source.refetch();
+              if (fresh.data) reset(fresh.data, key);
+              await qc.invalidateQueries({ queryKey: ['users', 'all'] });
+            }}
+          />
+        )}
         {tab === 'storage' && (
           <StorageTab
             {...tabProps}

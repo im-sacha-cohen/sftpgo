@@ -25,6 +25,7 @@ import { PermissionMatrix } from '../editors/PermissionMatrix';
 import { StorageEditor } from '../editors/StorageEditor';
 import { VirtualFoldersEditor } from '../editors/VirtualFoldersEditor';
 import { generatePassword, inheritedPermissions, PROTOCOL_LABEL } from '../model';
+import { EffectiveAccess } from './EffectiveAccess';
 
 export interface TabProps {
   draft: User;
@@ -38,7 +39,17 @@ export interface TabProps {
 
 /* ------------------------------------------------------------------ */
 
-export function AccessTab({ draft, base, isNew, set, readOnly, groups }: TabProps) {
+export function AccessTab({
+  draft,
+  base,
+  isNew,
+  set,
+  readOnly,
+  groups,
+  saved,
+  dirty,
+  onReload,
+}: TabProps & { saved?: User; dirty: boolean; onReload: () => Promise<void> }) {
   const t = useT(dict);
   const mappings = draft.groups ?? [];
   const inherited = inheritedPermissions(draft.permissions ?? {}, mappings, groups ?? []);
@@ -49,7 +60,7 @@ export function AccessTab({ draft, base, isNew, set, readOnly, groups }: TabProp
     for (const p of g?.user_settings?.filters?.denied_protocols ?? []) if (!deniedByGroup.has(p)) deniedByGroup.set(p, m.name ?? '');
   }
 
-  return (
+  const matrix = (
     <Columns
       main={
         <>
@@ -77,6 +88,15 @@ export function AccessTab({ draft, base, isNew, set, readOnly, groups }: TabProp
         </>
       }
     />
+  );
+
+  if (isNew || !saved) return matrix;
+  return (
+    <div className="users-access">
+      <EffectiveAccess user={saved} dirty={dirty} onChanged={onReload} />
+      <h2 className="users-access__advanced">Advanced: permissions per path</h2>
+      {matrix}
+    </div>
   );
 }
 

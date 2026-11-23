@@ -91,7 +91,8 @@
 .c-btn--danger {
   background: var(--bad);
   border-color: var(--bad);
-  color: var(--accent-tx);
+  /* White on the light theme's dark red, ink on the dark theme's salmon. */
+  color: var(--bad-tx);
 }
 .c-btn--danger:hover:not(:disabled) {
   background: color-mix(in srgb, var(--bad) 88%, var(--tx));
@@ -99,7 +100,7 @@
 }
 .c-btn--danger .c-kbd {
   background: transparent;
-  border-color: color-mix(in srgb, var(--accent-tx) 25%, transparent);
+  border-color: color-mix(in srgb, var(--bad-tx) 25%, transparent);
   color: inherit;
 }
 

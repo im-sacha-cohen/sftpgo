@@ -282,7 +282,12 @@ export default function FilesPage() {
     if (!perms.write || !names.length) return;
     const ok = await confirm({
       title: names.length === 1 ? t('deleteOne', { name: names[0] }) : t('deleteTitle', { n: names.length }),
-      message: t('deleteMsg'),
+      message: names.some((n) => {
+        const e = byName.get(n);
+        return !!e && isDir(e);
+      })
+        ? t('deleteMsg')
+        : t('deleteFileMsg'),
       confirmLabel: c('delete'),
       danger: true,
     });
