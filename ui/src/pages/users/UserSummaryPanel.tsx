@@ -224,7 +224,7 @@ export function UserSummaryPanel({ user, conns, id }: { user: User; conns: Conne
         </div>
         <div className="users-panel__actions">
           {can('view_user_files') && (
-            <Button variant="ghost" icon={FolderOpen} onClick={() => navigate(`/user-files/${encodeURIComponent(name)}`)}>
+            <Button variant="ghost" icon={FolderOpen} onClick={() => navigate(`/browse/u/${encodeURIComponent(name)}`)}>
               {t('spFiles')}
             </Button>
           )}

@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, type DragEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, Download, File, FileAudio, FileImage, FileText, FileVideo, Folder, FolderLock, FolderPlus, MoreHorizontal, Pencil, Trash2, Upload } from 'lucide-react';
-import { Button, DataTable, EmptyState, IconButton, Input, Menu, Modal, useConfirm, useToast } from '@/components/ui';
+import { Badge, Button, cx, DataTable, EmptyState, IconButton, Input, Menu, Modal, useConfirm, useToast } from '@/components/ui';
 import { ApiError, api, request } from '@/api/client';
 import type { DirEntry } from '@/api/types';
 import { formatBytes, formatRelative } from '@/lib/format';
@@ -60,11 +60,26 @@ export interface FsBrowserProps {
   writable?: boolean;
   /** Called after any change (e.g. to rescan the quota). */
   onChanged?: () => void;
+  /**
+   * Spaces shown inside these files, by full path. They are not real folders:
+   * SFTPGo refuses to rename or delete them, so they can only be removed from
+   * the files (onUnmount) when `removable` is set.
+   */
+  mounts?: Map<string, MountedSpace>;
+  onUnmount?: (path: string, mount: MountedSpace) => void;
+}
+
+export interface MountedSpace {
+  space: string;
+  /** Where it comes from, e.g. "Through group Partners". */
+  via?: string;
+  removable: boolean;
 }
 
 type Dialog = { kind: 'mkdir' } | { kind: 'rename'; entry: DirEntry } | null;
 
-export function FsBrowser({ base, cacheKey, dir, route, rootLabel = 'Home', writable = false, onChanged }: FsBrowserProps) {
+export function FsBrowser({ base, cacheKey, dir, route, rootLabel = 'Home', writable = false, onChanged, mounts, onUnmount }: FsBrowserProps) {
+  const mountAt = (e: DirEntry) => mounts?.get(join(dir, e.name ?? ''));
   const navigate = useNavigate();
   const toast = useToast();
   const confirm = useConfirm();
@@ -297,10 +312,16 @@ export function FsBrowser({ base, cacheKey, dir, route, rootLabel = 'Home', writ
               cell: (e) => {
                 const kind = previewKind(e.name ?? '');
                 const Icon = isDir(e) ? Folder : kind ? KIND_ICON[kind] : File;
+                const m = mountAt(e);
                 return (
-                  <span className={isDir(e) ? 'ufiles-name is-dir' : 'ufiles-name'}>
-                    <Icon size={16} strokeWidth={1.8} aria-hidden="true" />
+                  <span className={cx('ufiles-name', isDir(e) && 'is-dir', m && 'is-space')}>
+                    <Icon size={16} strokeWidth={1.8} aria-hidden="true" fill={m ? 'currentColor' : 'none'} />
                     <span className="mono">{e.name}</span>
+                    {m && (
+                      <Badge tone="warn" title={m.via}>
+                        Space{m.space !== e.name ? ` “${m.space}”` : ''}
+                      </Badge>
+                    )}
                   </span>
                 );
               },
@@ -315,8 +336,17 @@ export function FsBrowser({ base, cacheKey, dir, route, rootLabel = 'Home', writ
               id: 'actions',
               header: <span className="sr-only">Actions</span>,
               align: 'right',
-              cell: (e) =>
-                writable ? (
+              cell: (e) => {
+                const m = mountAt(e);
+                if (m)
+                  return m.removable && onUnmount ? (
+                    <Menu
+                      placement="bottom-end"
+                      trigger={<IconButton icon={MoreHorizontal} label={`Actions for ${e.name}`} variant="ghost" size="sm" />}
+                      items={[{ label: 'Remove from these files', icon: Trash2, danger: true, onSelect: () => onUnmount(join(dir, e.name ?? ''), m) }]}
+                    />
+                  ) : null;
+                return writable ? (
                   <Menu
                     placement="bottom-end"
                     trigger={<IconButton icon={MoreHorizontal} label={`Actions for ${e.name}`} variant="ghost" size="sm" />}
@@ -329,7 +359,8 @@ export function FsBrowser({ base, cacheKey, dir, route, rootLabel = 'Home', writ
                   />
                 ) : isDir(e) ? null : (
                   <IconButton icon={Download} label={`Download ${e.name}`} variant="ghost" size="sm" onClick={() => void download(join(dir, e.name ?? ''))} />
-                ),
+                );
+              },
             },
           ]}
         />
