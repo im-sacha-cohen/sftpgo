@@ -40,6 +40,7 @@ import (
 	"github.com/drakkan/sftpgo/v2/internal/mfa"
 	"github.com/drakkan/sftpgo/v2/internal/plugin"
 	"github.com/drakkan/sftpgo/v2/internal/sftpd"
+	"github.com/drakkan/sftpgo/v2/internal/signedfiles"
 	"github.com/drakkan/sftpgo/v2/internal/smtp"
 	"github.com/drakkan/sftpgo/v2/internal/telemetry"
 	"github.com/drakkan/sftpgo/v2/internal/util"
@@ -189,6 +190,7 @@ type globalConfig struct {
 	KMSConfig       kms.Configuration     `json:"kms" mapstructure:"kms"`
 	MFAConfig       mfa.Config            `json:"mfa" mapstructure:"mfa"`
 	TelemetryConfig telemetry.Conf        `json:"telemetry" mapstructure:"telemetry"`
+	SignedFiles     signedfiles.Conf      `json:"signed_files" mapstructure:"signed_files"`
 	PluginsConfig   []plugin.Config       `json:"plugins" mapstructure:"plugins"`
 	SMTPConfig      smtp.Config           `json:"smtp" mapstructure:"smtp"`
 }
@@ -471,6 +473,11 @@ func Init() {
 			TLSCipherSuites:    nil,
 			Protocols:          nil,
 		},
+		SignedFiles: signedfiles.Conf{
+			BindPort:    0,
+			BindAddress: "",
+			Sites:       nil,
+		},
 		SMTPConfig: smtp.Config{
 			Host:          "",
 			Port:          587,
@@ -577,6 +584,11 @@ func SetKMSConfig(config kms.Configuration) {
 // GetTelemetryConfig returns the telemetry configuration
 func GetTelemetryConfig() telemetry.Conf {
 	return globalConf.TelemetryConfig
+}
+
+// GetSignedFilesConfig returns the signed files configuration
+func GetSignedFilesConfig() signedfiles.Conf {
+	return globalConf.SignedFiles
 }
 
 // SetTelemetryConfig sets the telemetry configuration
@@ -785,6 +797,7 @@ func LoadConfig(configDir, configFile string) error {
 	// viper only supports slice of strings from env vars, so we use our custom method
 	loadBindingsFromEnv()
 	loadWebDAVCacheMappingsFromEnv()
+	globalConf.SignedFiles.Sites = signedfiles.LoadSitesFromEnv(globalConf.SignedFiles.Sites)
 	resetInvalidConfigs()
 	logger.Debug(logSender, "", "config file used: '%q', config loaded: %+v", viper.ConfigFileUsed(), getRedactedGlobalConf())
 	return nil
@@ -2252,6 +2265,8 @@ func setViperDefaults() {
 	viper.SetDefault("telemetry.min_tls_version", globalConf.TelemetryConfig.MinTLSVersion)
 	viper.SetDefault("telemetry.tls_cipher_suites", globalConf.TelemetryConfig.TLSCipherSuites)
 	viper.SetDefault("telemetry.tls_protocols", globalConf.TelemetryConfig.Protocols)
+	viper.SetDefault("signed_files.bind_port", globalConf.SignedFiles.BindPort)
+	viper.SetDefault("signed_files.bind_address", globalConf.SignedFiles.BindAddress)
 	viper.SetDefault("smtp.host", globalConf.SMTPConfig.Host)
 	viper.SetDefault("smtp.port", globalConf.SMTPConfig.Port)
 	viper.SetDefault("smtp.from", globalConf.SMTPConfig.From)

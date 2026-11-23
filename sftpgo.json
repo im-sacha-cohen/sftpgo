@@ -397,6 +397,11 @@
     "tls_cipher_suites": [],
     "tls_protocols": []
   },
+  "signed_files": {
+    "bind_port": 0,
+    "bind_address": "",
+    "sites": []
+  },
   "http": {
     "timeout": 20,
     "retry_wait_min": 2,

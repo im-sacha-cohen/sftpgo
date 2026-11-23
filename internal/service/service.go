@@ -27,7 +27,6 @@ import (
 	"github.com/drakkan/sftpgo/v2/internal/common"
 	"github.com/drakkan/sftpgo/v2/internal/config"
 	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/glyfiles"
 	"github.com/drakkan/sftpgo/v2/internal/httpd"
 	"github.com/drakkan/sftpgo/v2/internal/kms"
 	"github.com/drakkan/sftpgo/v2/internal/logger"
@@ -129,8 +128,8 @@ func (s *Service) Start(disableAWSInstallationCode bool) error {
 		return err
 	}
 
-	// gly-logger fork: signed URLs for the recordings, see internal/glyfiles
-	if err := glyfiles.Start(func(err error) { s.Error = err; s.Shutdown <- true }); err != nil {
+	// fork: files served behind signed URLs, see internal/signedfiles
+	if err := config.GetSignedFilesConfig().Start(func(err error) { s.Error = err; s.Shutdown <- true }); err != nil {
 		logger.Error(logSender, "", "%v", err)
 		logger.ErrorToConsole("%v", err)
 		plugin.Handler.Cleanup()
