@@ -37,6 +37,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -50,6 +52,7 @@ const (
 	defaultMaxTTL = 86400
 	maxMaxTTL     = 10 * 365 * 86400
 	maxEnvSites   = 10
+	maxEvents     = 200
 
 	// signature format version, part of the signed message. Never change
 	// the v1 format: a new format is a new version agreed with the signers.
@@ -196,6 +199,8 @@ func (c Conf) Start(onServeError func(error)) error {
 	if err != nil {
 		return fmt.Errorf("signed_files: unable to listen on %q: %w", addr, err)
 	}
+	h.bindAddress = addr
+	h.startedAt = time.Now()
 	srv := &http.Server{
 		Handler:           h,
 		ReadHeaderTimeout: 10 * time.Second,
@@ -207,6 +212,7 @@ func (c Conf) Start(onServeError func(error)) error {
 			s.host, s.rootPath, s.mode, s.maxTTL, len(s.previousKey) > 0)
 	}
 	logger.Info(logSender, "", "signed files server listening on %q, %d site(s)", addr, len(h.sites))
+	current.Store(h)
 	go func() {
 		err := srv.Serve(ln)
 		logger.Error(logSender, "", "signed files server stopped: %v", err)
@@ -237,14 +243,26 @@ type site struct {
 	key         []byte
 	previousKey []byte
 	maxTTL      time.Duration
+	order       int
+
+	served      atomic.Uint64
+	refused     atomic.Uint64
+	wouldRefuse atomic.Uint64
 }
 
 // Handler serves the configured sites
 type Handler struct {
-	sites    map[string]*site
-	fallback *site
-	now      func() time.Time
-	logf     func(level logger.LogLevel, format string, v ...any)
+	sites       map[string]*site
+	fallback    *site
+	now         func() time.Time
+	logf        func(level logger.LogLevel, format string, v ...any)
+	bindAddress string
+	startedAt   time.Time
+	unknownHost atomic.Uint64
+
+	eventsMu sync.Mutex
+	events   []Event
+	next     int
 }
 
 // NewHandler validates the sites and returns a Handler for them
@@ -261,6 +279,9 @@ func NewHandler(sites []Site) (*Handler, error) {
 	}
 	for idx, cfg := range sites {
 		s, err := newSite(cfg)
+		if err == nil {
+			s.order = idx
+		}
 		if err != nil {
 			h.close()
 			return nil, fmt.Errorf("signed_files: site %d (%q): %w", idx, cfg.Host, err)
@@ -355,7 +376,7 @@ type signedRequest struct {
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s := h.siteFor(r)
 	if s == nil {
-		h.logRequest(logger.LevelWarn, "unknown-host", r, nil, "", "", http.StatusNotFound)
+		h.logRequest(logger.LevelWarn, OutcomeUnknownHost, r, nil, "", "", http.StatusNotFound)
 		writeEmpty(w, http.StatusNotFound)
 		return
 	}
@@ -366,7 +387,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	// the path is checked in every mode: it protects the disk, not the access
 	if reason := checkPath(r.URL.Path); reason != "" {
-		h.logRequest(logger.LevelWarn, "refused", r, s, "", reason, http.StatusForbidden)
+		h.logRequest(logger.LevelWarn, OutcomeRefused, r, s, "", reason, http.StatusForbidden)
 		writeEmpty(w, http.StatusForbidden)
 		return
 	}
@@ -376,20 +397,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		user = req.user
 		if reason != "" {
 			if s.mode == ModeEnforce {
-				h.logRequest(logger.LevelWarn, "refused", r, s, user, reason, http.StatusForbidden)
+				h.logRequest(logger.LevelWarn, OutcomeRefused, r, s, user, reason, http.StatusForbidden)
 				writeEmpty(w, http.StatusForbidden)
 				return
 			}
 			// observe mode: serve anyway, log what would have been refused
 			sw := &statusWriter{ResponseWriter: w}
 			s.serveFile(sw, r)
-			h.logRequest(logger.LevelWarn, "observe-would-refuse", r, s, user, reason, sw.status)
+			h.logRequest(logger.LevelWarn, OutcomeWouldRefuse, r, s, user, reason, sw.status)
 			return
 		}
 	}
 	sw := &statusWriter{ResponseWriter: w}
 	s.serveFile(sw, r)
-	h.logRequest(logger.LevelInfo, "served", r, s, user, "", sw.status)
+	h.logRequest(logger.LevelInfo, OutcomeServed, r, s, user, "", sw.status)
 }
 
 // verify returns the parsed request and an empty reason if the signature is
@@ -400,6 +421,10 @@ func (s *site) verify(r *http.Request, now time.Time) (signedRequest, string) {
 	query, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
 		return req, "malformed_query"
+	}
+	// keep the claimed user for the logs, even if another parameter is wrong
+	if v := query["u"]; len(v) == 1 {
+		req.user = v[0]
 	}
 	values := make(map[string]string, 3)
 	for _, name := range []string{"exp", "u", "sig"} {
@@ -492,7 +517,8 @@ func writeEmpty(w http.ResponseWriter, status int) {
 	w.WriteHeader(status)
 }
 
-// logRequest never logs the query string: the signature must not be logged.
+// logRequest logs the request and updates the status shown by the admin API.
+// It never logs the query string: the signature must not be logged.
 func (h *Handler) logRequest(level logger.LogLevel, outcome string, r *http.Request, s *site, user, reason string,
 	status int,
 ) {
@@ -500,6 +526,7 @@ func (h *Handler) logRequest(level logger.LogLevel, outcome string, r *http.Requ
 	if s != nil {
 		mode = s.mode
 	}
+	h.recordStatus(outcome, r, s, user, reason, status)
 	h.logf(level, "%s host=%q method=%s path=%q u=%q reason=%q status=%d range=%q mode=%s remote=%q forwarded_for=%q",
 		outcome, truncate(r.Host, 128), r.Method, truncate(r.URL.Path, 512), truncate(user, 64), reason, status,
 		truncate(r.Header.Get("Range"), 64), mode, r.RemoteAddr,
@@ -530,4 +557,130 @@ func (w *statusWriter) Write(b []byte) (int, error) {
 		w.status = http.StatusOK
 	}
 	return w.ResponseWriter.Write(b)
+}
+
+// Request outcomes, in the logs and in the recent events
+const (
+	OutcomeServed      = "served"
+	OutcomeRefused     = "refused"
+	OutcomeWouldRefuse = "observe-would-refuse"
+	OutcomeUnknownHost = "unknown-host"
+)
+
+var current atomic.Pointer[Handler]
+
+// Event is a request that was refused, or would have been in observe mode.
+// It never contains the signature.
+type Event struct {
+	Time         time.Time `json:"time"`
+	Outcome      string    `json:"outcome"`
+	Host         string    `json:"host"`
+	Method       string    `json:"method"`
+	Path         string    `json:"path"`
+	User         string    `json:"u"`
+	Reason       string    `json:"reason"`
+	Status       int       `json:"status"`
+	RemoteAddr   string    `json:"remote_addr"`
+	ForwardedFor string    `json:"forwarded_for"`
+}
+
+// SiteStatus describes a site, without its keys
+type SiteStatus struct {
+	Host           string `json:"host"`
+	Root           string `json:"root"`
+	Mode           string `json:"mode"`
+	MaxTTL         int64  `json:"max_ttl"`
+	HasPreviousKey bool   `json:"has_previous_key"`
+	Served         uint64 `json:"served"`
+	Refused        uint64 `json:"refused"`
+	WouldRefuse    uint64 `json:"would_refuse"`
+}
+
+// Status describes the signed files server, without any key or signature
+type Status struct {
+	Enabled      bool         `json:"enabled"`
+	BindAddress  string       `json:"bind_address"`
+	StartedAt    *time.Time   `json:"started_at,omitempty"`
+	UnknownHost  uint64       `json:"unknown_host"`
+	Sites        []SiteStatus `json:"sites"`
+	RecentEvents []Event      `json:"recent_events"`
+}
+
+// GetStatus returns the status of the running server. Enabled is false if
+// the server is not started
+func GetStatus() Status {
+	h := current.Load()
+	if h == nil {
+		return Status{Sites: []SiteStatus{}, RecentEvents: []Event{}}
+	}
+	return h.status()
+}
+
+func (h *Handler) status() Status {
+	st := Status{
+		Enabled:     true,
+		BindAddress: h.bindAddress,
+		UnknownHost: h.unknownHost.Load(),
+		Sites:       make([]SiteStatus, len(h.sites)),
+	}
+	if !h.startedAt.IsZero() {
+		startedAt := h.startedAt
+		st.StartedAt = &startedAt
+	}
+	for _, s := range h.sites {
+		st.Sites[s.order] = SiteStatus{
+			Host:           s.host,
+			Root:           s.rootPath,
+			Mode:           s.mode,
+			MaxTTL:         int64(s.maxTTL / time.Second),
+			HasPreviousKey: len(s.previousKey) > 0,
+			Served:         s.served.Load(),
+			Refused:        s.refused.Load(),
+			WouldRefuse:    s.wouldRefuse.Load(),
+		}
+	}
+	h.eventsMu.Lock()
+	defer h.eventsMu.Unlock()
+	st.RecentEvents = make([]Event, 0, len(h.events))
+	// newest first
+	for i := range h.events {
+		idx := (h.next - 1 - i + len(h.events)) % len(h.events)
+		st.RecentEvents = append(st.RecentEvents, h.events[idx])
+	}
+	return st
+}
+
+func (h *Handler) recordStatus(outcome string, r *http.Request, s *site, user, reason string, status int) {
+	switch outcome {
+	case OutcomeServed:
+		s.served.Add(1)
+		return
+	case OutcomeRefused:
+		s.refused.Add(1)
+	case OutcomeWouldRefuse:
+		s.wouldRefuse.Add(1)
+	case OutcomeUnknownHost:
+		h.unknownHost.Add(1)
+	}
+	e := Event{
+		Time:         h.now().UTC(),
+		Outcome:      outcome,
+		Host:         truncate(r.Host, 128),
+		Method:       r.Method,
+		Path:         truncate(r.URL.Path, 512),
+		User:         truncate(user, 64),
+		Reason:       reason,
+		Status:       status,
+		RemoteAddr:   r.RemoteAddr,
+		ForwardedFor: truncate(r.Header.Get("X-Forwarded-For"), 128),
+	}
+	h.eventsMu.Lock()
+	defer h.eventsMu.Unlock()
+	if len(h.events) < maxEvents {
+		h.events = append(h.events, e)
+		h.next = len(h.events) % maxEvents
+		return
+	}
+	h.events[h.next] = e
+	h.next = (h.next + 1) % maxEvents
 }

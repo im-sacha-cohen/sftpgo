@@ -218,6 +218,16 @@ SFTPGO_SIGNED_FILES__SITES__0__MAX_TTL=86400
 
 Les index vont de 0 à 9. Un index absent du fichier ajoute un site.
 
+### Console et API
+
+La page **Sécurité → Fichiers signés** de la Console (`/web/console/signed-files`) affiche, en lecture seule :
+
+- l'adresse d'écoute et l'heure de démarrage ;
+- pour chaque site : domaine, mode, durée maximale, changement de clé en cours ou non, et les compteurs depuis le démarrage (servies, refusées, à refuser en mode `observe`), puis le dossier ;
+- les 200 derniers refus, du plus récent au plus ancien : heure, résultat, motif, chemin, `u`, statut, adresse d'origine.
+
+Elle s'appuie sur `GET /api/v2/signedfiles/status`, réservée aux administrateurs qui ont la permission `*`. Ni la page ni l'API ne renvoient les clés ou `sig`. Les compteurs et les refus sont gardés en mémoire seulement : ils repartent de zéro à chaque redémarrage. La configuration se fait toujours dans `sftpgo.json` ou par les variables d'environnement, pas depuis la Console.
+
 ### Changer de clé
 
 1. Mettre la nouvelle clé dans `signing_key` et l'ancienne dans `previous_signing_key`, redémarrer, puis faire signer l'application avec la nouvelle clé.

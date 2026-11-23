@@ -492,6 +492,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/signedfiles/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the signed files server status
+         * @description Fork addition. Returns the sites served behind signed URLs (never their keys), the request counters since the start and the last refused requests (never the signature). Only for admins with the "*" permission
+         */
+        get: operations["get_signed_files_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/defender/hosts/{id}": {
         parameters: {
             query?: never;
@@ -703,6 +723,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/spaces/defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the defaults for new spaces
+         * @description Returns where the Console suggests to store new spaces (a "spaces" directory next to the users base dir). base_dir is empty if no users base dir is configured
+         */
+        get: operations["get_spaces_defaults"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/folders": {
         parameters: {
             query?: never;
@@ -739,18 +779,18 @@ export interface paths {
         };
         /**
          * Read a virtual folder's directory
-         * @description Returns the contents of a directory of the specified virtual folder, read-only. Requires the manage_folders and view_user_files permissions
+         * @description Returns the contents of a directory of the specified virtual folder, read-only. Requires the manage_folders and view_user_files permissions. Not allowed for role administrators
          */
         get: operations["admin_get_folder_dir_contents"];
         put?: never;
         /**
          * Create a directory in a virtual folder
-         * @description Creates a directory inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards
+         * @description Creates a directory inside the specified virtual folder. Requires the manage_folders, view_user_files and edit_users permissions. Not allowed for role administrators. The folder used quota is not updated, run a folder quota scan afterwards
          */
         post: operations["admin_create_folder_dir"];
         /**
          * Delete a directory of a virtual folder
-         * @description Deletes a directory, recursively, inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards
+         * @description Deletes a directory, recursively, inside the specified virtual folder. Requires the manage_folders, view_user_files and edit_users permissions. Not allowed for role administrators. The folder used quota is not updated, run a folder quota scan afterwards
          */
         delete: operations["admin_delete_folder_dir"];
         options?: never;
@@ -770,14 +810,14 @@ export interface paths {
         };
         /**
          * Download a virtual folder's file
-         * @description Returns the contents of a file of the specified virtual folder. Range requests are supported. Requires the manage_folders and view_user_files permissions
+         * @description Returns the contents of a file of the specified virtual folder. Range requests are supported. Requires the manage_folders and view_user_files permissions. Not allowed for role administrators
          */
         get: operations["admin_download_folder_file"];
         put?: never;
         post?: never;
         /**
          * Delete a file of a virtual folder
-         * @description Deletes a file inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards
+         * @description Deletes a file inside the specified virtual folder. Requires the manage_folders, view_user_files and edit_users permissions. Not allowed for role administrators. The folder used quota is not updated, run a folder quota scan afterwards
          */
         delete: operations["admin_delete_folder_file"];
         options?: never;
@@ -799,7 +839,7 @@ export interface paths {
         put?: never;
         /**
          * Upload a file to a virtual folder
-         * @description Uploads the request body as a file inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards
+         * @description Uploads the request body as a file inside the specified virtual folder. Requires the manage_folders, view_user_files and edit_users permissions. Not allowed for role administrators. The folder used quota is not updated, run a folder quota scan afterwards
          */
         post: operations["admin_upload_folder_file"];
         delete?: never;
@@ -822,7 +862,7 @@ export interface paths {
         put?: never;
         /**
          * Move or rename an entry of a virtual folder
-         * @description Moves or renames a file or directory inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards
+         * @description Moves or renames a file or directory inside the specified virtual folder. Requires the manage_folders, view_user_files and edit_users permissions. Not allowed for role administrators. The folder used quota is not updated, run a folder quota scan afterwards
          */
         post: operations["admin_move_folder_entry"];
         delete?: never;
@@ -3078,6 +3118,69 @@ export interface components {
              */
             start_time?: number;
         };
+        SignedFilesSite: {
+            /** @description host name of the site, empty for the site answering the hosts without a site */
+            host?: string;
+            /** @description directory served */
+            root?: string;
+            /** @enum {string} */
+            mode?: "off" | "observe" | "enforce";
+            /**
+             * Format: int64
+             * @description maximum number of seconds between now and exp
+             */
+            max_ttl?: number;
+            /** @description true while a previous key is also accepted (key change in progress) */
+            has_previous_key?: boolean;
+            /**
+             * Format: int64
+             * @description requests served with a valid signature (or with the mode off) since the start
+             */
+            served?: number;
+            /**
+             * Format: int64
+             * @description requests refused since the start
+             */
+            refused?: number;
+            /**
+             * Format: int64
+             * @description requests served in observe mode that enforce would have refused, since the start
+             */
+            would_refuse?: number;
+        };
+        SignedFilesEvent: {
+            /** Format: date-time */
+            time?: string;
+            /** @enum {string} */
+            outcome?: "refused" | "observe-would-refuse" | "unknown-host";
+            host?: string;
+            method?: string;
+            path?: string;
+            /** @description user claimed by the request, verified only if the signature is valid */
+            u?: string;
+            /** @description refusal reason, for example missing_exp, expired, bad_signature, bad_path */
+            reason?: string;
+            /** @description HTTP status sent */
+            status?: number;
+            remote_addr?: string;
+            /** @description X-Forwarded-For header as received, not verified */
+            forwarded_for?: string;
+        };
+        SignedFilesStatus: {
+            /** @description false if the signed files server is not started (bind_port is 0) */
+            enabled?: boolean;
+            bind_address?: string;
+            /** Format: date-time */
+            started_at?: string;
+            /**
+             * Format: int64
+             * @description requests for a host without a site since the start
+             */
+            unknown_host?: number;
+            sites?: components["schemas"]["SignedFilesSite"][];
+            /** @description last refused requests, newest first, at most 200 */
+            recent_events?: components["schemas"]["SignedFilesEvent"][];
+        };
         DefenderEntry: {
             id?: string;
             ip?: string;
@@ -4660,6 +4763,30 @@ export interface operations {
             default: components["responses"]["DefaultResponse"];
         };
     };
+    get_signed_files_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignedFilesStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalServerError"];
+            default: components["responses"]["DefaultResponse"];
+        };
+    };
     get_defender_host_by_id: {
         parameters: {
             query?: never;
@@ -4959,6 +5086,31 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             500: components["responses"]["InternalServerError"];
+            default: components["responses"]["DefaultResponse"];
+        };
+    };
+    get_spaces_defaults: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        base_dir?: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             default: components["responses"]["DefaultResponse"];
         };
     };
@@ -5464,7 +5616,10 @@ export interface operations {
     update_group: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Update only if the object was not changed since it was read: the updated_at value that was read (Unix timestamp in milliseconds). If it changed meanwhile the update is refused with 412 */
+                "X-SFTPGo-If-Updated-At"?: number;
+            };
             path: {
                 /** @description group name */
                 name: string;
@@ -6703,7 +6858,10 @@ export interface operations {
                  *      */
                 disconnect?: 0 | 1;
             };
-            header?: never;
+            header?: {
+                /** @description Update only if the object was not changed since it was read: the updated_at value that was read (Unix timestamp in milliseconds). If it changed meanwhile the update is refused with 412 */
+                "X-SFTPGo-If-Updated-At"?: number;
+            };
             path: {
                 /** @description the username */
                 username: string;

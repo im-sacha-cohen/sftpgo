@@ -1012,6 +1012,28 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         default:
           $ref: '#/components/responses/DefaultResponse'
+  /signedfiles/status:
+    get:
+      tags:
+        - signed files
+      summary: Get the signed files server status
+      description: 'Fork addition. Returns the sites served behind signed URLs (never their keys), the request counters since the start and the last refused requests (never the signature). Only for admins with the "*" permission'
+      operationId: get_signed_files_status
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignedFilesStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
   /defender/hosts/{id}:
     parameters:
       - name: id
@@ -6868,6 +6890,96 @@ components:
           type: integer
           format: int64
           description: scan start time as unix timestamp in milliseconds
+    SignedFilesSite:
+      type: object
+      properties:
+        host:
+          type: string
+          description: host name of the site, empty for the site answering the hosts without a site
+        root:
+          type: string
+          description: directory served
+        mode:
+          type: string
+          enum:
+            - 'off'
+            - observe
+            - enforce
+        max_ttl:
+          type: integer
+          format: int64
+          description: maximum number of seconds between now and exp
+        has_previous_key:
+          type: boolean
+          description: true while a previous key is also accepted (key change in progress)
+        served:
+          type: integer
+          format: int64
+          description: requests served with a valid signature (or with the mode off) since the start
+        refused:
+          type: integer
+          format: int64
+          description: requests refused since the start
+        would_refuse:
+          type: integer
+          format: int64
+          description: requests served in observe mode that enforce would have refused, since the start
+    SignedFilesEvent:
+      type: object
+      properties:
+        time:
+          type: string
+          format: date-time
+        outcome:
+          type: string
+          enum:
+            - refused
+            - observe-would-refuse
+            - unknown-host
+        host:
+          type: string
+        method:
+          type: string
+        path:
+          type: string
+        u:
+          type: string
+          description: user claimed by the request, verified only if the signature is valid
+        reason:
+          type: string
+          description: refusal reason, for example missing_exp, expired, bad_signature, bad_path
+        status:
+          type: integer
+          description: HTTP status sent
+        remote_addr:
+          type: string
+        forwarded_for:
+          type: string
+          description: X-Forwarded-For header as received, not verified
+    SignedFilesStatus:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: false if the signed files server is not started (bind_port is 0)
+        bind_address:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        unknown_host:
+          type: integer
+          format: int64
+          description: requests for a host without a site since the start
+        sites:
+          type: array
+          items:
+            $ref: '#/components/schemas/SignedFilesSite'
+        recent_events:
+          type: array
+          description: last refused requests, newest first, at most 200
+          items:
+            $ref: '#/components/schemas/SignedFilesEvent'
     DefenderEntry:
       type: object
       properties:

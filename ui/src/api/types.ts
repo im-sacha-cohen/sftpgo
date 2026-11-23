@@ -121,3 +121,6 @@ export type IPListEntry = S['IPListEntry'];
 export type ApiResponse = S['ApiResponse'];
 export type VersionInfo = S['VersionInfo'];
 export type Token = S['Token'];
+export type SignedFilesStatus = S['SignedFilesStatus'];
+export type SignedFilesSite = S['SignedFilesSite'];
+export type SignedFilesEvent = S['SignedFilesEvent'];

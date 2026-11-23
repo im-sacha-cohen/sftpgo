@@ -502,3 +502,57 @@ func assertNoSecret(t *testing.T, logs string, sigs ...string) {
 		assert.NotContains(t, logs, s[:20])
 	}
 }
+
+func TestStatus(t *testing.T) {
+	keyA := "key-of-site-a-at-least-32-characters"
+	dirB := t.TempDir()
+	h, _ := newTestHandlerSites(t, []Site{
+		{Host: "a.example.com", Root: newTestDir(t), SigningKey: Secret(keyA), PreviousSigningKey: Secret(keyA + "-old")},
+		{Host: "b.example.com", Root: dirB, Mode: ModeObserve, SigningKey: Secret(keyA), MaxTTL: 60},
+	})
+	signA := signedURL(path1, exp1, user1, Sign([]byte(keyA), exp1, user1, path1))
+	assert.Equal(t, http.StatusOK, doHost(h, "a.example.com", http.MethodGet, signA, nil).Code)
+	assert.Equal(t, http.StatusForbidden, doHost(h, "a.example.com", http.MethodGet, path1+"?u="+user2, nil).Code)
+	assert.Equal(t, http.StatusNotFound, doHost(h, "b.example.com", http.MethodGet, path1, nil).Code)
+	assert.Equal(t, http.StatusNotFound, doHost(h, "c.example.com", http.MethodGet, signA, nil).Code)
+
+	st := h.status()
+	assert.True(t, st.Enabled)
+	require.Len(t, st.Sites, 2)
+	assert.Equal(t, SiteStatus{Host: "a.example.com", Root: h.sites["a.example.com"].rootPath, Mode: ModeEnforce,
+		MaxTTL: 86400, HasPreviousKey: true, Served: 1, Refused: 1}, st.Sites[0])
+	assert.Equal(t, SiteStatus{Host: "b.example.com", Root: dirB, Mode: ModeObserve, MaxTTL: 60, WouldRefuse: 1}, st.Sites[1])
+	assert.Equal(t, uint64(1), st.UnknownHost)
+	require.Len(t, st.RecentEvents, 3)
+	// newest first, served requests are not kept
+	assert.Equal(t, OutcomeUnknownHost, st.RecentEvents[0].Outcome)
+	assert.Equal(t, OutcomeWouldRefuse, st.RecentEvents[1].Outcome)
+	assert.Equal(t, "missing_exp", st.RecentEvents[1].Reason)
+	assert.Equal(t, http.StatusNotFound, st.RecentEvents[1].Status)
+	assert.Equal(t, Event{Time: testNow.UTC(), Outcome: OutcomeRefused, Host: "a.example.com", Method: http.MethodGet,
+		Path: path1, User: user2, Reason: "missing_exp", Status: http.StatusForbidden,
+		RemoteAddr: "192.0.2.1:1234"}, st.RecentEvents[2])
+	out := fmt.Sprintf("%+v", st)
+	assert.NotContains(t, out, keyA)
+	assert.NotContains(t, out, "sig")
+
+	// the ring keeps the last maxEvents refusals, newest first
+	for i := range maxEvents + 5 {
+		doHost(h, "a.example.com", http.MethodGet, fmt.Sprintf("/f%d.mp3", i), nil)
+	}
+	st = h.status()
+	require.Len(t, st.RecentEvents, maxEvents)
+	assert.Equal(t, fmt.Sprintf("/f%d.mp3", maxEvents+4), st.RecentEvents[0].Path)
+	assert.Equal(t, "/f5.mp3", st.RecentEvents[maxEvents-1].Path)
+	assert.Equal(t, uint64(maxEvents+6), st.Sites[0].Refused)
+
+	// not started
+	current.Store(nil)
+	st = GetStatus()
+	assert.False(t, st.Enabled)
+	assert.NotNil(t, st.Sites)
+	assert.NotNil(t, st.RecentEvents)
+	current.Store(h)
+	assert.True(t, GetStatus().Enabled)
+	current.Store(nil)
+}
