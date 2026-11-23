@@ -808,3 +808,9 @@ td.users-matrix__path {
   background: var(--bad-soft);
   color: var(--bad);
 }
+.users-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}

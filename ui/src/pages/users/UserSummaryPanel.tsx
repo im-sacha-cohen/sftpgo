@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Power, PowerOff, Unplug } from 'lucide-react';
+import { FolderOpen, Pencil, Power, PowerOff, Unplug } from 'lucide-react';
 import type { ConnectionStatus, Permission, User } from '@/api/types';
 import { Button, ProgressBar, useConfirm, useToast } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
@@ -222,9 +222,16 @@ export function UserSummaryPanel({ user, conns, id }: { user: User; conns: Conne
           <h2 className="users-panel__name">{name}</h2>
           <StatusLine tone={live.tone} label={live.label} pulse={online} />
         </div>
-        <Button icon={Pencil} onClick={open}>
-          {canEdit ? t('spEdit') : t('spView')}
-        </Button>
+        <div className="users-panel__actions">
+          {can('view_user_files') && (
+            <Button variant="ghost" icon={FolderOpen} onClick={() => navigate(`/user-files/${encodeURIComponent(name)}`)}>
+              {t('spFiles')}
+            </Button>
+          )}
+          <Button icon={Pencil} onClick={open}>
+            {canEdit ? t('spEdit') : t('spView')}
+          </Button>
+        </div>
       </header>
       {user.description && <p className="users-panel__desc">{user.description}</p>}
 

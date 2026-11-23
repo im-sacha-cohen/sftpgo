@@ -411,6 +411,7 @@ const fr = {
   // summary panel
   spEdit: 'Modifier',
   spView: 'Ouvrir',
+  spFiles: 'Parcourir ses fichiers',
   spOnlineSince: 'En ligne depuis {time}',
   spOnlineVia: 'En ligne depuis {time}, en {proto}',
   spLastSeen: 'Dernière connexion {when}',
@@ -843,6 +844,7 @@ export const dict: Dict<UsersKey> = {
 
     spEdit: 'Edit',
     spView: 'Open',
+    spFiles: 'Browse files',
     spOnlineSince: 'Online since {time}',
     spOnlineVia: 'Online since {time}, over {proto}',
     spLastSeen: 'Last signed in {when}',
