@@ -1529,7 +1529,7 @@ paths:
       tags:
         - folders
       summary: Read a virtual folder's directory
-      description: 'Returns the contents of a directory of the specified virtual folder, read-only. Requires the manage_folders and view_user_files permissions'
+      description: 'Returns the contents of a directory of the specified virtual folder, read-only. Requires the manage_folders and view_user_files permissions. Not allowed for role administrators'
       operationId: admin_get_folder_dir_contents
       parameters:
         - in: query
@@ -1562,7 +1562,7 @@ paths:
       tags:
         - folders
       summary: Create a directory in a virtual folder
-      description: 'Creates a directory inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards'
+      description: 'Creates a directory inside the specified virtual folder. Requires the manage_folders, view_user_files and edit_users permissions. Not allowed for role administrators. The folder used quota is not updated, run a folder quota scan afterwards'
       operationId: admin_create_folder_dir
       parameters:
         - in: query
@@ -1599,7 +1599,7 @@ paths:
       tags:
         - folders
       summary: Delete a directory of a virtual folder
-      description: 'Deletes a directory, recursively, inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards'
+      description: 'Deletes a directory, recursively, inside the specified virtual folder. Requires the manage_folders, view_user_files and edit_users permissions. Not allowed for role administrators. The folder used quota is not updated, run a folder quota scan afterwards'
       operationId: admin_delete_folder_dir
       parameters:
         - in: query
@@ -1639,7 +1639,7 @@ paths:
       tags:
         - folders
       summary: Download a virtual folder's file
-      description: 'Returns the contents of a file of the specified virtual folder. Range requests are supported. Requires the manage_folders and view_user_files permissions'
+      description: 'Returns the contents of a file of the specified virtual folder. Range requests are supported. Requires the manage_folders and view_user_files permissions. Not allowed for role administrators'
       operationId: admin_download_folder_file
       parameters:
         - in: query
@@ -1679,7 +1679,7 @@ paths:
       tags:
         - folders
       summary: Delete a file of a virtual folder
-      description: 'Deletes a file inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards'
+      description: 'Deletes a file inside the specified virtual folder. Requires the manage_folders, view_user_files and edit_users permissions. Not allowed for role administrators. The folder used quota is not updated, run a folder quota scan afterwards'
       operationId: admin_delete_folder_file
       parameters:
         - in: query
@@ -1719,7 +1719,7 @@ paths:
       tags:
         - folders
       summary: Upload a file to a virtual folder
-      description: 'Uploads the request body as a file inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards'
+      description: 'Uploads the request body as a file inside the specified virtual folder. Requires the manage_folders, view_user_files and edit_users permissions. Not allowed for role administrators. The folder used quota is not updated, run a folder quota scan afterwards'
       operationId: admin_upload_folder_file
       requestBody:
         content:
@@ -1770,7 +1770,7 @@ paths:
       tags:
         - folders
       summary: Move or rename an entry of a virtual folder
-      description: 'Moves or renames a file or directory inside the specified virtual folder. Requires the manage_folders and view_user_files permissions. The folder used quota is not updated, run a folder quota scan afterwards'
+      description: 'Moves or renames a file or directory inside the specified virtual folder. Requires the manage_folders, view_user_files and edit_users permissions. Not allowed for role administrators. The folder used quota is not updated, run a folder quota scan afterwards'
       operationId: admin_move_folder_entry
       parameters:
         - in: query
@@ -2041,6 +2041,14 @@ paths:
       summary: Update group
       description: Updates an existing group
       operationId: update_group
+      parameters:
+        - in: header
+          name: X-SFTPGo-If-Updated-At
+          schema:
+            type: integer
+            format: int64
+          required: false
+          description: 'Update only if the object was not changed since it was read: the updated_at value that was read (Unix timestamp in milliseconds). If it changed meanwhile the update is refused with 412'
       requestBody:
         required: true
         content:
@@ -3749,6 +3757,13 @@ paths:
       description: 'Updates an existing user and optionally disconnects it, if connected, to apply the new settings. The current password will be preserved if the password field is omitted in the request body. Recovery codes and TOTP configuration cannot be set/updated using this API: each user must use the specific APIs'
       operationId: update_user
       parameters:
+        - in: header
+          name: X-SFTPGo-If-Updated-At
+          schema:
+            type: integer
+            format: int64
+          required: false
+          description: 'Update only if the object was not changed since it was read: the updated_at value that was read (Unix timestamp in milliseconds). If it changed meanwhile the update is refused with 412'
         - in: query
           name: disconnect
           schema:

@@ -39,15 +39,25 @@ import (
 // connection for a synthetic user whose root is the folder's filesystem (mapped
 // path or remote storage), so nothing outside the folder can be reached. Read
 // handlers get a read-only user; the write handlers below (upload, mkdir,
-// rename/move, delete) get full permissions on the folder. The synthetic user
-// does not exist in the data provider, so the folder's used quota is not
-// updated on writes: run a folder quota scan afterwards (the Console does).
+// rename/move, delete) get full permissions on the folder and also need
+// change_users. The synthetic user does not exist in the data provider, so the
+// folder's used quota is not updated on writes: run a folder quota scan
+// afterwards (the Console does).
+//
+// Virtual folders are not bound to a role and their mapped path can be any
+// directory of the server, so role administrators are refused: otherwise they
+// could reach the files of users outside their role, or any file the SFTPGo
+// process can read, just by creating a folder.
 
 func getAdminFolderConnection(w http.ResponseWriter, r *http.Request, write ...bool) (*Connection, error) {
 	claims, err := jwt.FromContext(r.Context())
 	if err != nil || claims.Username == "" {
 		sendAPIResponse(w, r, err, "Invalid token claims", http.StatusBadRequest)
 		return nil, fmt.Errorf("invalid token claims %w", err)
+	}
+	if claims.Role != "" {
+		sendAPIResponse(w, r, nil, "Role administrators cannot access the content of virtual folders", http.StatusForbidden)
+		return nil, errors.New("role administrators cannot access the content of virtual folders")
 	}
 	name := getURLParam(r, "name")
 	folder, err := dataprovider.GetFolderByName(name)

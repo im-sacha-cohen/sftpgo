@@ -1459,16 +1459,16 @@ func (s *httpdServer) setupRESTAPIRoutes() {
 					compressor.Handler).Get(folderPath+"/{name}/fs/dirs", adminReadFolderDir)
 				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles)).
 					Get(folderPath+"/{name}/fs/files", adminGetFolderFile)
-				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles)).
-					Post(folderPath+"/{name}/fs/dirs", adminFsCreateDir(getAdminFolderWriteConnection))
-				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles)).
-					Delete(folderPath+"/{name}/fs/dirs", adminFsDeleteDir(getAdminFolderWriteConnection))
-				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles)).
-					Delete(folderPath+"/{name}/fs/files", adminFsDeleteFile(getAdminFolderWriteConnection))
-				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles)).
-					Post(folderPath+"/{name}/fs/files/upload", adminFsUpload(getAdminFolderWriteConnection))
-				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles)).
-					Post(folderPath+"/{name}/fs/file-actions/move", adminFsMove(getAdminFolderWriteConnection))
+				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles),
+					s.checkPerms(dataprovider.PermAdminChangeUsers)).Post(folderPath+"/{name}/fs/dirs", adminFsCreateDir(getAdminFolderWriteConnection))
+				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles),
+					s.checkPerms(dataprovider.PermAdminChangeUsers)).Delete(folderPath+"/{name}/fs/dirs", adminFsDeleteDir(getAdminFolderWriteConnection))
+				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles),
+					s.checkPerms(dataprovider.PermAdminChangeUsers)).Delete(folderPath+"/{name}/fs/files", adminFsDeleteFile(getAdminFolderWriteConnection))
+				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles),
+					s.checkPerms(dataprovider.PermAdminChangeUsers)).Post(folderPath+"/{name}/fs/files/upload", adminFsUpload(getAdminFolderWriteConnection))
+				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles),
+					s.checkPerms(dataprovider.PermAdminChangeUsers)).Post(folderPath+"/{name}/fs/file-actions/move", adminFsMove(getAdminFolderWriteConnection))
 				router.With(s.checkPerms(dataprovider.PermAdminManageGroups)).Get(groupPath, getGroups)
 				router.With(s.checkPerms(dataprovider.PermAdminManageGroups)).Get(groupPath+"/{name}", getGroupByName)
 				router.With(s.checkPerms(dataprovider.PermAdminManageGroups)).Post(groupPath, addGroup)

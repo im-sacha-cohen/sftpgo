@@ -1004,3 +1004,41 @@ func responseControllerDeadlines(rc *http.ResponseController, read, write time.T
 		logger.Error(logSender, "", "unable to set write timeout to %s: %v", write, err)
 	}
 }
+
+// ifUpdatedAtHeader lets a client update an object only if it was not changed
+// since it read it: the value is the updated_at it saw (Unix ms). Without the
+// header the update is unconditional, as before.
+const ifUpdatedAtHeader = "X-SFTPGo-If-Updated-At"
+
+// conditionalUpdates serializes conditional updates, so that the check and
+// the write of one request can't interleave with another one.
+var conditionalUpdates sync.Mutex
+
+// lockIfConditional takes the conditional update lock when the request asks
+// for a conditional update. Call the returned function once the update is done.
+func lockIfConditional(r *http.Request) func() {
+	if r.Header.Get(ifUpdatedAtHeader) == "" {
+		return func() {}
+	}
+	conditionalUpdates.Lock()
+	return conditionalUpdates.Unlock
+}
+
+// checkUnmodified sends 412 Precondition Failed and returns false when the
+// client asked for a conditional update and the object changed meanwhile.
+func checkUnmodified(w http.ResponseWriter, r *http.Request, updatedAt int64) bool {
+	value := r.Header.Get(ifUpdatedAtHeader)
+	if value == "" {
+		return true
+	}
+	expected, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		sendAPIResponse(w, r, err, fmt.Sprintf("Invalid %s header", ifUpdatedAtHeader), http.StatusBadRequest)
+		return false
+	}
+	if expected != updatedAt {
+		sendAPIResponse(w, r, nil, "The object was changed by someone else, reload it and try again", http.StatusPreconditionFailed)
+		return false
+	}
+	return true
+}

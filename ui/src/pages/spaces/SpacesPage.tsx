@@ -204,7 +204,7 @@ function SpaceDetail({ space, onGiveAccess }: { space: SpaceFolder; onGiveAccess
   const confirm = useConfirm();
   const toast = useToast();
   const invalidate = useInvalidateAccess();
-  const { can } = useAuth();
+  const { can, session } = useAuth();
   const members = useSpaceMembers(space);
   const [deleting, setDeleting] = useState(false);
 
@@ -254,9 +254,11 @@ function SpaceDetail({ space, onGiveAccess }: { space: SpaceFolder; onGiveAccess
           {space.description && <p className="spaces-detail__desc">{space.description}</p>}
         </div>
         <div className="spaces-detail__actions">
-          <Button icon={FolderOpen} onClick={() => navigate(`/folders/${encodeURIComponent(name)}`)}>
-            Browse files
-          </Button>
+          {can('view_user_files') && !session?.role && (
+            <Button icon={FolderOpen} onClick={() => navigate(`/browse/s/${encodeURIComponent(name)}`)}>
+              Browse files
+            </Button>
+          )}
           <Button variant="primary" icon={UserPlus} onClick={onGiveAccess}>
             Give access
           </Button>

@@ -69,7 +69,7 @@ function usePeople() {
 }
 
 function Sidebar({ kind, name }: { kind: Kind | null; name: string }) {
-  const { can } = useAuth();
+  const { can, session } = useAuth();
   const navigate = useNavigate();
   const [filter, setFilter] = useState('');
   const people = usePeople();
@@ -129,7 +129,7 @@ function Sidebar({ kind, name }: { kind: Kind | null; name: string }) {
         </div>
       )}
 
-      {can('manage_folders') && (
+      {can('manage_folders') && !session?.role && (
         <div className="browse__group">
           <h2 className="browse__group-title">
             Spaces <span className="browse__count">{spaces.data?.length ?? ''}</span>
@@ -193,7 +193,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint: stri
 /* ---------------------------------------------------------------- */
 
 function Explorer({ kind, name, dir }: { kind: Kind; name: string; dir: string }) {
-  const { can } = useAuth();
+  const { can, session } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const confirm = useConfirm();
@@ -233,11 +233,18 @@ function Explorer({ kind, name, dir }: { kind: Kind; name: string; dir: string }
     }
   };
 
-  if (isSpace && !can('manage_folders')) {
-    return <EmptyState icon={FolderLock} title="You can’t open spaces" description="This needs the “manage_folders” permission." />;
+  if (isSpace && (!can('manage_folders') || session?.role)) {
+    return (
+      <EmptyState
+        icon={FolderLock}
+        title="You can’t open spaces"
+        description={session?.role ? 'Administrators limited to a role can’t open the files of spaces.' : 'This needs the “manage_folders” permission.'}
+      />
+    );
   }
 
-  const writable = isSpace ? true : can('edit_users');
+  // Changing files needs change_users, for spaces too.
+  const writable = can('edit_users');
   const settingsTo = isSpace ? `/spaces/${enc(name)}` : `/users/${enc(name)}`;
   const onChanged = () => {
     if (isSpace) {

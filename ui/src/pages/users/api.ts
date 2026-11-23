@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/api/client';
+import { api, request } from '@/api/client';
 import type { BaseVirtualFolder, ConnectionStatus, Group, Role, User } from '@/api/types';
 import { useAuth } from '@/lib/auth';
 
@@ -86,9 +86,17 @@ export function useCloseConnection() {
   });
 }
 
+/** Saves only if nobody changed the object since it was loaded (the server answers 412 otherwise). */
+const putIfUnchanged = (path: string, body: { updated_at?: number }) =>
+  request(path, {
+    method: 'PUT',
+    body,
+    headers: body.updated_at ? { 'X-SFTPGo-If-Updated-At': String(body.updated_at) } : undefined,
+  });
+
 export const userApi = {
   create: (u: User) => api.post<User>('/users', u),
-  update: (u: User) => api.put(`/users/${encodeURIComponent(u.username!)}`, u),
+  update: (u: User) => putIfUnchanged(`/users/${encodeURIComponent(u.username!)}`, u),
   remove: (username: string) => api.del(`/users/${encodeURIComponent(username)}`),
   disable2fa: (username: string) => api.put(`/users/${encodeURIComponent(username)}/2fa/disable`),
   quotaScan: (username: string) => api.post(`/quotas/users/${encodeURIComponent(username)}/scan`),
@@ -96,13 +104,13 @@ export const userApi = {
   setStatus: (u: User, status: 0 | 1) => {
     const body: User = { ...u, status };
     delete body.password;
-    return api.put(`/users/${encodeURIComponent(u.username!)}`, body);
+    return putIfUnchanged(`/users/${encodeURIComponent(u.username!)}`, body);
   },
 };
 
 export const groupApi = {
   create: (g: Group) => api.post<Group>('/groups', g),
-  update: (g: Group) => api.put(`/groups/${encodeURIComponent(g.name!)}`, g),
+  update: (g: Group) => putIfUnchanged(`/groups/${encodeURIComponent(g.name!)}`, g),
   remove: (name: string) => api.del(`/groups/${encodeURIComponent(name)}`),
 };
 

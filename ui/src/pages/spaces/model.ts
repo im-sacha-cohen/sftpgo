@@ -1,4 +1,4 @@
-import { api } from '@/api/client';
+import { api, ApiError, request } from '@/api/client';
 import type { BaseVirtualFolder, Group, Permission, User, VirtualFolder } from '@/api/types';
 
 /**
@@ -192,43 +192,66 @@ function applyTo<T extends { virtual_folders?: VirtualFolder[] }>(
   return setPerms({ ...obj, virtual_folders: vfs }, perms);
 }
 
-export async function setUserAccess(username: string, space: string, path: string | null, role: RoleId | null) {
-  const u = await api.get<User>(`/users/${encodeURIComponent(username)}`);
-  const next = applyTo(
-    u,
-    space,
-    path,
-    role,
-    (o) => (o.permissions ?? {}) as Record<string, Permission[]>,
-    (o, p) => ({ ...o, permissions: p }),
+/**
+ * Reads an object, changes it and writes it back only if nobody changed it in
+ * between (the server answers 412 otherwise): then it starts again from the
+ * fresh copy, so two admins editing at the same time don't erase each other.
+ */
+async function updateSafely<T extends { updated_at?: number }>(path: string, change: (current: T) => T) {
+  for (let attempt = 1; ; attempt++) {
+    const current = await api.get<T>(path);
+    try {
+      await request(path, {
+        method: 'PUT',
+        body: change(current),
+        headers: { 'X-SFTPGo-If-Updated-At': String(current.updated_at ?? 0) },
+      });
+      return;
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 412 && attempt < 4) continue;
+      throw err;
+    }
+  }
+}
+
+/** "/" must always keep a permission entry or SFTPGo rejects the user. */
+const keepRoot = (perms: Record<string, Permission[]>) => (perms['/'] ? perms : { ...perms, '/': ['list', 'download'] as Permission[] });
+
+export function setUserAccess(username: string, space: string, path: string | null, role: RoleId | null) {
+  return updateSafely<User>(`/users/${encodeURIComponent(username)}`, (u) =>
+    applyTo(
+      u,
+      space,
+      path,
+      role,
+      (o) => (o.permissions ?? {}) as Record<string, Permission[]>,
+      (o, p) => ({ ...o, permissions: keepRoot(p) }),
+    ),
   );
-  // "/" must always keep a permission entry or SFTPGo rejects the user.
-  if (!next.permissions?.['/']) next.permissions = { ...next.permissions, '/': ['list', 'download'] };
-  await api.put(`/users/${encodeURIComponent(username)}`, next);
 }
 
 /** Sets, or removes with a null role, the role on a folder of the user's own files. */
-export async function setUserPathRole(username: string, path: string, role: RoleId | null) {
-  const u = await api.get<User>(`/users/${encodeURIComponent(username)}`);
-  const p = normPath(path);
-  const perms = { ...(u.permissions ?? {}) } as Record<string, Permission[]>;
-  if (role) perms[p] = roleById(role).perms;
-  else delete perms[p];
-  if (!perms['/']) perms['/'] = ['list', 'download'];
-  await api.put(`/users/${encodeURIComponent(username)}`, { ...u, permissions: perms });
+export function setUserPathRole(username: string, path: string, role: RoleId | null) {
+  return updateSafely<User>(`/users/${encodeURIComponent(username)}`, (u) => {
+    const p = normPath(path);
+    const perms = { ...(u.permissions ?? {}) } as Record<string, Permission[]>;
+    if (role) perms[p] = roleById(role).perms;
+    else delete perms[p];
+    return { ...u, permissions: keepRoot(perms) };
+  });
 }
 
-export async function setGroupAccess(groupName: string, space: string, path: string | null, role: RoleId | null) {
-  const g = await api.get<Group>(`/groups/${encodeURIComponent(groupName)}`);
-  const next = applyTo(
-    g,
-    space,
-    path,
-    role,
-    (o) => (o.user_settings?.permissions ?? {}) as Record<string, Permission[]>,
-    (o, p) => ({ ...o, user_settings: { ...o.user_settings, permissions: p } }),
+export function setGroupAccess(groupName: string, space: string, path: string | null, role: RoleId | null) {
+  return updateSafely<Group>(`/groups/${encodeURIComponent(groupName)}`, (g) =>
+    applyTo(
+      g,
+      space,
+      path,
+      role,
+      (o) => (o.user_settings?.permissions ?? {}) as Record<string, Permission[]>,
+      (o, p) => ({ ...o, user_settings: { ...o.user_settings, permissions: p } }),
+    ),
   );
-  await api.put(`/groups/${encodeURIComponent(groupName)}`, next);
 }
 
 export function setMemberAccess(m: { kind: MemberKind; name: string }, space: string, path: string | null, role: RoleId | null) {

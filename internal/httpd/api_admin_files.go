@@ -36,6 +36,19 @@ import (
 
 // getAdminUserConnection opens a connection as the user named in the URL on
 // behalf of the admin in the token. It sends the error response itself.
+// adminUserConnection is the connection an administrator opens on a user's
+// files. It is listed apart from the user's own sessions ("admin:<admin>@<user>",
+// a name a real user cannot have) so it neither counts towards nor is blocked by
+// the user's max sessions.
+type adminUserConnection struct {
+	*Connection
+	label string
+}
+
+func (c *adminUserConnection) GetUsername() string { return c.label }
+
+func (c *adminUserConnection) GetMaxSessions() int { return 0 }
+
 func getAdminUserConnection(w http.ResponseWriter, r *http.Request) (*Connection, error) {
 	claims, err := jwt.FromContext(r.Context())
 	if err != nil || claims.Username == "" {
@@ -48,16 +61,23 @@ func getAdminUserConnection(w http.ResponseWriter, r *http.Request) (*Connection
 		sendAPIResponse(w, r, err, "", getRespStatus(err))
 		return nil, err
 	}
+	// What the administrator reads or writes must not use up the user's data
+	// transfer quota: drop the transfer limits for this connection only. The
+	// user's permissions, file filters and disk quota still apply.
+	user.UploadDataTransfer = 0
+	user.DownloadDataTransfer = 0
+	user.TotalDataTransfer = 0
 	connID := xid.New().String()
 	protocol := getProtocolFromRequest(r)
 	baseConn := common.NewBaseConnection(connID, protocol, util.GetHTTPLocalAddress(r), r.RemoteAddr, user)
 	connection := newConnection(baseConn, w, r)
-	if err = common.Connections.Add(connection); err != nil {
+	tracked := &adminUserConnection{Connection: connection, label: fmt.Sprintf("admin:%s@%s", claims.Username, user.Username)}
+	if err = common.Connections.Add(tracked); err != nil {
 		sendAPIResponse(w, r, err, "Unable to add connection", http.StatusTooManyRequests)
 		return connection, err
 	}
-	logger.Info(logSender, connection.GetID(), "admin %q is reading the files of user %q, path %q",
-		claims.Username, user.Username, r.URL.Query().Get("path"))
+	logger.Info(logSender, connection.GetID(), "admin %q is accessing the files of user %q, method %s, path %q",
+		claims.Username, user.Username, r.Method, r.URL.Query().Get("path"))
 	return connection, nil
 }
 

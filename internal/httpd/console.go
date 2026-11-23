@@ -36,6 +36,13 @@ const (
 	consoleConfigMarker   = "<!--sftpgo-config-->"
 	webConsolePathDefault = "/console"
 	consoleStreamWorker   = "stream-sw.js"
+	// The Console keeps its session in the browser: only its own scripts may
+	// run. Documents it creates from blobs (file previews) inherit this policy,
+	// so a script inside a previewed file can't run either.
+	consoleCSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+		"img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self'; " +
+		"frame-src 'self' blob:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; " +
+		"frame-ancestors 'none'"
 )
 
 func (s *httpdServer) handleConsoleStreamWorker(w http.ResponseWriter, r *http.Request) {
@@ -97,6 +104,8 @@ func (s *httpdServer) handleConsoleIndex(consolePath string) http.HandlerFunc {
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "same-origin")
+		w.Header().Set("Content-Security-Policy", consoleCSP)
+		w.Header().Set("X-Frame-Options", "DENY")
 		_, _ = w.Write(content)
 	}
 }

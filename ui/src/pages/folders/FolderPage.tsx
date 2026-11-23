@@ -43,11 +43,12 @@ export default function FolderPage() {
   const qc = useQueryClient();
   const toast = useToast();
   const confirm = useConfirm();
-  const { can } = useAuth();
+  const { can, session } = useAuth();
   const allowed = can('manage_folders');
   // Existing folders open on their content; settings are one tab away.
   const [params, setParams] = useSearchParams();
-  const canBrowse = !isNew && can('view_user_files');
+  // Role administrators can't open folder contents (the server refuses: folders have no role).
+  const canBrowse = !isNew && can('view_user_files') && !session?.role;
   const tab = canBrowse && params.get('tab') !== 'settings' ? 'files' : 'settings';
   const browseDir = '/' + (params.get('path') ?? '').split('/').filter(Boolean).join('/');
   const browseRoute = (d: string) => `/folders/${enc(name)}${d === '/' ? '' : `?path=${encodeURIComponent(d)}`}`;
@@ -330,7 +331,7 @@ export default function FolderPage() {
           dir={browseDir}
           route={browseRoute}
           rootLabel={name}
-          writable
+          writable={can('edit_users')}
           onChanged={() => {
             // Writes go through a synthetic user: refresh the folder's used quota quietly.
             if (!can('quota_scans')) return;

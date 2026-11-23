@@ -3,7 +3,9 @@
 
 export type PreviewKind = 'image' | 'pdf' | 'text' | 'video' | 'audio';
 
-const IMAGE = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'ico', 'svg'];
+// No SVG: an SVG can hold scripts, and a preview blob shares the Console's
+// origin, so opening it as a page would let it read the session.
+const IMAGE = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'ico'];
 const VIDEO = ['mp4', 'webm', 'ogv', 'mov', 'm4v', 'mkv'];
 const AUDIO = ['mp3', 'wav', 'ogg', 'oga', 'opus', 'flac', 'm4a', 'aac', 'weba'];
 const TEXT = [

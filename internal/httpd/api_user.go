@@ -157,6 +157,8 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer lockIfConditional(r)()
+
 	username := getURLParam(r, "username")
 	disconnect := 0
 	if _, ok := r.URL.Query()["disconnect"]; ok {
@@ -170,6 +172,9 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	user, err := dataprovider.UserExists(username, claims.Role)
 	if err != nil {
 		sendAPIResponse(w, r, err, "", getRespStatus(err))
+		return
+	}
+	if !checkUnmodified(w, r, user.UpdatedAt) {
 		return
 	}
 

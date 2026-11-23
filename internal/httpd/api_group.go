@@ -73,10 +73,15 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer lockIfConditional(r)()
+
 	name := getURLParam(r, "name")
 	group, err := dataprovider.GroupExists(name)
 	if err != nil {
 		sendAPIResponse(w, r, err, "", getRespStatus(err))
+		return
+	}
+	if !checkUnmodified(w, r, group.UpdatedAt) {
 		return
 	}
 
