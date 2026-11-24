@@ -64,3 +64,19 @@ export function previewKind(name: string): PreviewKind | null {
   if (AUDIO.includes(e)) return 'audio';
   return null;
 }
+
+/** Family of a file for icons, colours and the type filter of the file lists. */
+export type FileKind = 'audio' | 'video' | 'image' | 'document' | 'archive' | 'other';
+
+const ARCHIVE = ['zip', 'tar', 'gz', 'tgz', 'bz2', 'xz', 'zst', '7z', 'rar', 'iso', 'dmg'];
+const DOCUMENT = ['pdf', 'doc', 'docx', 'odt', 'rtf', 'xls', 'xlsx', 'ods', 'ppt', 'pptx', 'odp', 'pages', 'numbers', 'key', 'epub'];
+
+export function fileKind(name: string): FileKind {
+  const e = extOf(name);
+  if (AUDIO.includes(e)) return 'audio';
+  if (VIDEO.includes(e)) return 'video';
+  if (IMAGE.includes(e) || e === 'svg' || e === 'heic' || e === 'tif' || e === 'tiff') return 'image';
+  if (ARCHIVE.includes(e)) return 'archive';
+  if (DOCUMENT.includes(e) || TEXT.includes(e)) return 'document';
+  return 'other';
+}

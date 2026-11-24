@@ -1,9 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Download, FileAudio, FileImage, FileQuestion, FileText, FileVideo, Maximize2, Minimize2, X } from 'lucide-react';
 import { Button, EmptyState, IconButton, Spinner } from '@/components/ui';
 import { formatBytes } from '@/lib/format';
 import { streamingReady, streamUrl } from '@/lib/stream';
 import { MediaPlayer } from './MediaPlayer';
+import { canFollowLive, createLiveSource, type LiveSource, type LiveState } from './live';
 import { BLOB_MAX, MIME, TEXT_MAX, extOf, type PreviewKind } from './kinds';
 import './FilePreview.css';
 
@@ -16,6 +17,12 @@ export interface FilePreviewProps {
   fetchFile: (signal: AbortSignal, range?: string) => Promise<Response>;
   /** API endpoint + query used to stream audio/video, e.g. ['/user/files', { path }]. */
   stream?: [string, Record<string, string>];
+  /** Administrator acting as this user: streaming uses that user's token. */
+  actingAs?: string;
+  /** The file is still being written: follow it as it grows (MP3). */
+  live?: boolean;
+  /** Extra information shown under the viewer (size, dates, location…). */
+  details?: ReactNode;
   onClose: () => void;
   onDownload: () => void;
   onPrev?: () => void;
@@ -67,8 +74,11 @@ export function PreviewLayout({ panel, children }: { panel: ReactNode; children:
 }
 
 /** Side panel showing one file: custom audio/video player, images, PDFs and text. */
-export function FilePreview({ path, size, kind, fetchFile, stream, onClose, onDownload, onPrev, onNext, position }: FilePreviewProps) {
+export function FilePreview({ path, size, kind, fetchFile, stream, actingAs, live, details, onClose, onDownload, onPrev, onNext, position }: FilePreviewProps) {
   const [state, setState] = useState<State>({ status: 'loading' });
+  const liveSrc = useRef<LiveSource | null>(null);
+  const [liveState, setLiveState] = useState<LiveState | null>(null);
+  const following = kind === 'audio' && !!live && canFollowLive(path);
   const [mediaError, setMediaError] = useState(false);
   const [wide, setWide] = useState(false);
   const name = baseName(path);
@@ -80,10 +90,26 @@ export function FilePreview({ path, size, kind, fetchFile, stream, onClose, onDo
     let objectUrl: string | null = null;
     setState({ status: 'loading' });
     setMediaError(false);
+    setLiveState(null);
+    if (following) {
+      const src = createLiveSource({
+        fetchRange: (range, signal) => fetchFile(signal, range),
+        onState: (s) => {
+          if (!ctrl.signal.aborted) setLiveState(s);
+        },
+      });
+      liveSrc.current = src;
+      setState({ status: 'url', url: src.url });
+      return () => {
+        ctrl.abort();
+        src.stop();
+        liveSrc.current = null;
+      };
+    }
     (async () => {
       try {
         if (media && stream && (await streamingReady())) {
-          if (!ctrl.signal.aborted) setState({ status: 'url', url: streamUrl(stream[0], stream[1]) });
+          if (!ctrl.signal.aborted) setState({ status: 'url', url: streamUrl(stream[0], stream[1], actingAs) });
           return;
         }
         if (kind === 'text') {
@@ -111,7 +137,7 @@ export function FilePreview({ path, size, kind, fetchFile, stream, onClose, onDo
     };
     // fetchFile/stream change identity on every render of the parent; the path is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path, kind, size]);
+  }, [path, kind, following ? -1 : size, following]);
 
   // Esc closes; ←/→ move between files. Ignored while typing, inside the
   // player (it uses the arrows to seek) or when a dialog is open.
@@ -146,6 +172,7 @@ export function FilePreview({ path, size, kind, fetchFile, stream, onClose, onDo
           <h2 className="fp-panel__name">{name}</h2>
           <p className="fp-panel__meta mono">
             {parentOf(path)} · {formatBytes(size, 'en')}
+            {following && liveState && !liveState.finished ? ' · growing' : ''}
           </p>
         </div>
         <IconButton
@@ -187,8 +214,15 @@ export function FilePreview({ path, size, kind, fetchFile, stream, onClose, onDo
             subtitle={extOf(name).toUpperCase()}
             onEnded={kind === 'audio' ? onNext : undefined}
             onError={() => setMediaError(true)}
+            onMedia={following ? (el) => liveSrc.current?.attach(el) : undefined}
+            live={
+              following
+                ? { edge: liveState?.edge ?? 0, finished: !!liveState?.finished, onGoLive: () => liveSrc.current?.goLive() }
+                : undefined
+            }
           />
         )}
+        {details && <div className="fp__details">{details}</div>}
       </div>
 
       <footer className="fp-panel__foot">

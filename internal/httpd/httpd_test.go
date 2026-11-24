@@ -13718,14 +13718,15 @@ func TestHealthCheck(t *testing.T) {
 }
 
 func TestGetWebRootMock(t *testing.T) {
+	// The Console is the default UI.
 	req, _ := http.NewRequest(http.MethodGet, "/", nil)
 	rr := executeRequest(req)
 	checkResponseCode(t, http.StatusFound, rr)
-	assert.Equal(t, webClientLoginPath, rr.Header().Get("Location"))
+	assert.Equal(t, webBasePath+"/console", rr.Header().Get("Location"))
 	req, _ = http.NewRequest(http.MethodGet, webBasePath, nil)
 	rr = executeRequest(req)
 	checkResponseCode(t, http.StatusFound, rr)
-	assert.Equal(t, webClientLoginPath, rr.Header().Get("Location"))
+	assert.Equal(t, webBasePath+"/console", rr.Header().Get("Location"))
 	req, _ = http.NewRequest(http.MethodGet, webBasePathAdmin, nil)
 	rr = executeRequest(req)
 	checkResponseCode(t, http.StatusFound, rr)
@@ -21678,7 +21679,7 @@ func TestAllowList(t *testing.T) {
 	err := common.Initialize(common.Config, 0)
 	assert.NoError(t, err)
 
-	req, _ := http.NewRequest(http.MethodGet, webLoginPath, nil)
+	req, _ := http.NewRequest(http.MethodGet, legacyURL(webLoginPath), nil)
 	rr := executeRequest(req)
 	checkResponseCode(t, http.StatusForbidden, rr)
 	assert.Contains(t, rr.Body.String(), common.ErrConnectionDenied.Error())
@@ -21857,7 +21858,7 @@ func TestWebAdminLoginMock(t *testing.T) {
 	checkResponseCode(t, http.StatusOK, rr)
 	assert.Contains(t, rr.Body.String(), util.I18nErrorInvalidCSRF)
 
-	req, _ = http.NewRequest(http.MethodGet, webLoginPath, nil)
+	req, _ = http.NewRequest(http.MethodGet, legacyURL(webLoginPath), nil)
 	rr = executeRequest(req)
 	checkResponseCode(t, http.StatusOK, rr)
 
@@ -28081,7 +28082,7 @@ func TestAdminForgotPassword(t *testing.T) {
 	rr = executeRequest(req)
 	checkResponseCode(t, http.StatusOK, rr)
 
-	req, err = http.NewRequest(http.MethodGet, webLoginPath, nil)
+	req, err = http.NewRequest(http.MethodGet, legacyURL(webLoginPath), nil)
 	assert.NoError(t, err)
 	rr = executeRequest(req)
 	checkResponseCode(t, http.StatusOK, rr)
@@ -28289,7 +28290,7 @@ func TestUserForgotPassword(t *testing.T) {
 	rr = executeRequest(req)
 	checkResponseCode(t, http.StatusOK, rr)
 
-	req, err = http.NewRequest(http.MethodGet, webClientLoginPath, nil)
+	req, err = http.NewRequest(http.MethodGet, legacyURL(webClientLoginPath), nil)
 	assert.NoError(t, err)
 	rr = executeRequest(req)
 	checkResponseCode(t, http.StatusOK, rr)
@@ -29384,8 +29385,16 @@ func getCSRFTokenFromInternalPageMock(urlPath, token string) (string, error) {
 	return getCSRFTokenFromBody(rr.Body)
 }
 
+// legacyURL asks for the legacy page: the sign-in pages redirect to the Console otherwise.
+func legacyURL(u string) string {
+	if strings.Contains(u, "?") {
+		return u + "&legacy=1"
+	}
+	return u + "?legacy=1"
+}
+
 func getCSRFTokenMock(loginURLPath, remoteAddr string) (string, string, error) {
-	req, err := http.NewRequest(http.MethodGet, loginURLPath, nil)
+	req, err := http.NewRequest(http.MethodGet, legacyURL(loginURLPath), nil)
 	if err != nil {
 		return "", "", err
 	}
@@ -29400,7 +29409,7 @@ func getCSRFTokenMock(loginURLPath, remoteAddr string) (string, string, error) {
 }
 
 func getCSRFToken(url string) (string, string, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequest(http.MethodGet, legacyURL(url), nil)
 	if err != nil {
 		return "", "", err
 	}

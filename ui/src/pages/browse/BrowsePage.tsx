@@ -1,16 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Folder, FolderLock, Search, Settings2, User as UserIcon } from 'lucide-react';
+import { ArrowLeft, Folder, FolderLock, Search, Settings2, User as UserIcon, UserX } from 'lucide-react';
 import { api } from '@/api/client';
 import type { User } from '@/api/types';
 import { Page, PageHeader } from '@/app/PageHeader';
-import { Button, cx, EmptyState, Input, Skeleton, useConfirm, useToast } from '@/components/ui';
+import { Button, cx, EmptyState, Input, Skeleton, Spinner, useConfirm, useToast } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { formatBytes } from '@/lib/format';
 import { fetchAll, useSpaces, type SpaceFolder } from '@/pages/spaces/api';
 import { analyzeAccess, setUserAccess } from '@/pages/spaces/model';
 import { errMessage, FsBrowser, type MountedSpace } from '@/pages/userfiles/FsBrowser';
+import { Explorer } from '@/pages/client/Explorer';
+import { DriveLayout, FolderTree, NewButton, SideTitle } from '@/pages/client/Drive';
+import { actAsClient, actAsToken, FilesClientProvider } from '@/pages/client/fsclient';
+import '@/pages/client/client.css';
 import './browse.css';
 
 // Every file on the server in one place: each person's home and each space,
@@ -44,16 +48,99 @@ export default function BrowsePage() {
     );
   }
 
+  if (kind === 'u' && name) {
+    return (
+      <Page>
+        <ActAs key={name} name={name} dir={dir} />
+      </Page>
+    );
+  }
+
   return (
     <Page>
       <PageHeader title="Files" subtitle="Everything stored on the server: each person’s own files and each shared space." />
-      <div className={cx('browse', kind && name && 'has-selection')}>
-        <Sidebar kind={kind} name={name} />
-        <section className="browse__main" aria-label="Explorer">
-          {kind && name ? <Explorer key={`${kind}:${name}`} kind={kind} name={name} dir={dir} /> : <Overview />}
-        </section>
-      </div>
+      <DriveLayout label="People and spaces" sidebar={<Sidebar kind={kind} name={name} />}>
+        <section aria-label="Explorer">{kind && name ? <SpaceExplorer key={`${kind}:${name}`} kind={kind} name={name} dir={dir} /> : <Overview />}</section>
+      </DriveLayout>
     </Page>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+
+/**
+ * A person's own files, opened as that person: the administrator gets a short
+ * token limited to files and shares (POST /users/{username}/impersonate) and
+ * the same explorer as the user's "My files" runs with it.
+ */
+function ActAs({ name, dir }: { name: string; dir: string }) {
+  const { can } = useAuth();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const token = useQuery({
+    queryKey: ['act-as', name],
+    queryFn: () => actAsToken(name),
+    retry: false,
+    staleTime: Infinity,
+    gcTime: 0,
+  });
+  const client = useMemo(() => (token.data ? actAsClient(name, token.data) : null), [name, token.data]);
+  const toRoute = (d: string) => route('u', name, d);
+  const sidebar = (tree: boolean) => (
+    <>
+      {tree && <NewButton />}
+      <Sidebar kind="u" name={name}>
+        {tree && <FolderTree rootLabel={name} rootIcon={UserIcon} current={dir} route={toRoute} />}
+      </Sidebar>
+    </>
+  );
+
+  if (!client) {
+    return (
+      <DriveLayout label="People and spaces" sidebar={sidebar(false)}>
+        {token.isError ? (
+          <EmptyState
+            icon={UserX}
+            title={`You can’t open ${name}’s files`}
+            description={errMessage(token.error)}
+            action={<Button onClick={() => navigate('/browse')}>All people and spaces</Button>}
+          />
+        ) : (
+          <div className="browse-loading">
+            <Spinner label={`Opening ${name}’s files`} />
+          </div>
+        )}
+      </DriveLayout>
+    );
+  }
+
+  return (
+    <FilesClientProvider client={client}>
+      <DriveLayout label="People and spaces" sidebar={sidebar(true)}>
+        <Explorer
+          dir={dir}
+          route={toRoute}
+          rootLabel={name}
+          actionsInSidebar
+          onChanged={() => void qc.invalidateQueries({ queryKey: ['users', 'browse'] })}
+          context={
+            <>
+              <UserIcon size={15} aria-hidden="true" />
+              <span>
+                Own files of <strong>{name}</strong>
+                {client.perms.includes('write-disabled') ? ' · read only' : ' · you act as this user, their permissions and quota apply'}
+              </span>
+              <span className="files-context__fill" />
+              {can('view_users') && (
+                <Button size="sm" variant="ghost" icon={Settings2} onClick={() => navigate(`/users/${enc(name)}`)}>
+                  Account and access
+                </Button>
+              )}
+            </>
+          }
+        />
+      </DriveLayout>
+    </FilesClientProvider>
   );
 }
 
@@ -68,7 +155,7 @@ function usePeople() {
   });
 }
 
-function Sidebar({ kind, name }: { kind: Kind | null; name: string }) {
+function Sidebar({ kind, name, children }: { kind: Kind | null; name: string; children?: ReactNode }) {
   const { can, session } = useAuth();
   const navigate = useNavigate();
   const [filter, setFilter] = useState('');
@@ -83,6 +170,8 @@ function Sidebar({ kind, name }: { kind: Kind | null; name: string }) {
   const item = (k: Kind, n: string, meta: string, icon: typeof Folder) => {
     const Icon = icon;
     const current = kind === k && name === n;
+    // The open person shows their folder tree in place of the plain item.
+    if (current && k === 'u' && children) return <li key={`${k}:${n}`}>{children}</li>;
     return (
       <li key={`${k}:${n}`}>
         <button type="button" className={cx('browse-item', current && 'is-current')} aria-current={current || undefined} onClick={() => navigate(route(k, n))}>
@@ -99,7 +188,7 @@ function Sidebar({ kind, name }: { kind: Kind | null; name: string }) {
   };
 
   return (
-    <aside className="browse__side" aria-label="People and spaces">
+    <>
       <Input
         aria-label="Filter people and spaces"
         placeholder="Find a person or a space"
@@ -110,9 +199,7 @@ function Sidebar({ kind, name }: { kind: Kind | null; name: string }) {
 
       {can('view_users') && (
         <div className="browse__group">
-          <h2 className="browse__group-title">
-            People <span className="browse__count">{people.data?.length ?? ''}</span>
-          </h2>
+          <SideTitle count={people.data?.length ?? ''}>People</SideTitle>
           {people.isLoading ? (
             <Skeleton lines={4} />
           ) : people.isError ? (
@@ -131,9 +218,7 @@ function Sidebar({ kind, name }: { kind: Kind | null; name: string }) {
 
       {can('manage_folders') && !session?.role && (
         <div className="browse__group">
-          <h2 className="browse__group-title">
-            Spaces <span className="browse__count">{spaces.data?.length ?? ''}</span>
-          </h2>
+          <SideTitle count={spaces.data?.length ?? ''}>Spaces</SideTitle>
           {spaces.isLoading ? (
             <Skeleton lines={3} />
           ) : spaces.isError ? (
@@ -147,7 +232,7 @@ function Sidebar({ kind, name }: { kind: Kind | null; name: string }) {
           )}
         </div>
       )}
-    </aside>
+    </>
   );
 }
 
@@ -192,7 +277,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint: stri
 
 /* ---------------------------------------------------------------- */
 
-function Explorer({ kind, name, dir }: { kind: Kind; name: string; dir: string }) {
+function SpaceExplorer({ kind, name, dir }: { kind: Kind; name: string; dir: string }) {
   const { can, session } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();

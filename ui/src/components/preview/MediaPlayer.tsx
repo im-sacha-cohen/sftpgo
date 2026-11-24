@@ -17,6 +17,18 @@ export interface MediaPlayerProps {
   autoPlay?: boolean;
   onEnded?: () => void;
   onError?: () => void;
+  /** Receives the <audio>/<video> element (live following needs it). */
+  onMedia?: (el: HTMLMediaElement | null) => void;
+  /** The file is still being written and is followed as it grows. */
+  live?: LiveInfo;
+}
+
+export interface LiveInfo {
+  /** Seconds of audio in the file so far. */
+  edge: number;
+  /** The file stopped growing. */
+  finished: boolean;
+  onGoLive: () => void;
 }
 
 const SPEEDS = [0.75, 1, 1.25, 1.5, 2];
@@ -120,8 +132,14 @@ function Slider({ label, value, max, buffered, step, valueText, onChange, onScru
   );
 }
 
-export function MediaPlayer({ kind, src, title, subtitle, autoPlay = true, onEnded, onError }: MediaPlayerProps) {
+export function MediaPlayer({ kind, src, title, subtitle, autoPlay = true, onEnded, onError, onMedia, live }: MediaPlayerProps) {
   const media = useRef<HTMLVideoElement & HTMLAudioElement>(null);
+  const onMediaRef = useRef(onMedia);
+  onMediaRef.current = onMedia;
+  useEffect(() => {
+    onMediaRef.current?.(media.current);
+    return () => onMediaRef.current?.(null);
+  }, [src]);
   const root = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
@@ -198,6 +216,10 @@ export function MediaPlayer({ kind, src, title, subtitle, autoPlay = true, onEnd
     else if (k === 'm') (handled(), setMuted((m) => !m));
     else if (k === 'f' && kind === 'video') (handled(), toggleFullscreen());
   };
+
+  // Seconds behind the live edge (only while following a file being written).
+  const behind = live && !live.finished ? Math.max(0, live.edge - time) : null;
+  const atEdge = behind !== null && behind < 8;
 
   const VolumeIcon = muted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
   const PlayIcon = playing ? Pause : Play;
@@ -283,6 +305,25 @@ export function MediaPlayer({ kind, src, title, subtitle, autoPlay = true, onEnd
           </span>
           <span className="mp__title">{title}</span>
           {subtitle && <span className="mp__subtitle mono">{subtitle}</span>}
+        </div>
+      )}
+
+      {live && (
+        <div className="mp__live">
+          {live.finished ? (
+            <span className="mp__live-note">Recording finished</span>
+          ) : (
+            <>
+              <span className="mp__live-badge">
+                <span className="mp__live-dot" aria-hidden="true" />
+                Live
+              </span>
+              <span className="mp__live-note mono">{atEdge ? 'At the live edge' : `${clock(behind ?? 0)} behind`}</span>
+              <button type="button" className="mp__live-go" onClick={live.onGoLive} disabled={atEdge}>
+                Go live
+              </button>
+            </>
+          )}
         </div>
       )}
 

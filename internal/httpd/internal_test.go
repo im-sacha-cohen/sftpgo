@@ -1235,7 +1235,7 @@ func TestTokenSignatureValidation(t *testing.T) {
 	}()
 
 	tokenValidationMode = 2
-	req, err = http.NewRequest(http.MethodGet, webClientLoginPath, nil)
+	req, err = http.NewRequest(http.MethodGet, webClientLoginPath+"?legacy=1", nil)
 	require.NoError(t, err)
 	rr = httptest.NewRecorder()
 	testServer.Config.Handler.ServeHTTP(rr, req)
@@ -2856,7 +2856,7 @@ func TestProxyHeaders(t *testing.T) {
 	testServer.Config.Handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	req, err = http.NewRequest(http.MethodGet, webAdminLoginPath, nil)
+	req, err = http.NewRequest(http.MethodGet, webAdminLoginPath+"?legacy=1", nil)
 	assert.NoError(t, err)
 	req.RemoteAddr = testIP
 	rr = httptest.NewRecorder()
@@ -2885,7 +2885,7 @@ func TestProxyHeaders(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 	assert.Contains(t, rr.Body.String(), util.I18nErrorInvalidCredentials)
 
-	req, err = http.NewRequest(http.MethodGet, webAdminLoginPath, nil)
+	req, err = http.NewRequest(http.MethodGet, webAdminLoginPath+"?legacy=1", nil)
 	assert.NoError(t, err)
 	req.RemoteAddr = validForwardedFor
 	rr = httptest.NewRecorder()
@@ -2913,7 +2913,7 @@ func TestProxyHeaders(t *testing.T) {
 	cookie = rr.Header().Get("Set-Cookie")
 	assert.NotContains(t, cookie, "Secure")
 
-	req, err = http.NewRequest(http.MethodGet, webAdminLoginPath, nil)
+	req, err = http.NewRequest(http.MethodGet, webAdminLoginPath+"?legacy=1", nil)
 	assert.NoError(t, err)
 	req.RemoteAddr = validForwardedFor
 	rr = httptest.NewRecorder()
@@ -2942,7 +2942,7 @@ func TestProxyHeaders(t *testing.T) {
 	cookie = rr.Header().Get("Set-Cookie")
 	assert.Contains(t, cookie, "Secure")
 
-	req, err = http.NewRequest(http.MethodGet, webAdminLoginPath, nil)
+	req, err = http.NewRequest(http.MethodGet, webAdminLoginPath+"?legacy=1", nil)
 	assert.NoError(t, err)
 	req.RemoteAddr = validForwardedFor
 	rr = httptest.NewRecorder()
@@ -3157,14 +3157,14 @@ func TestWebAdminRedirect(t *testing.T) {
 	rr := httptest.NewRecorder()
 	testServer.Config.Handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusFound, rr.Code, rr.Body.String())
-	assert.Equal(t, webAdminLoginPath, rr.Header().Get("Location"))
+	assert.Equal(t, path.Join(webBasePath, webConsolePathDefault), rr.Header().Get("Location"))
 
 	req, err = http.NewRequest(http.MethodGet, webBasePath, nil)
 	assert.NoError(t, err)
 	rr = httptest.NewRecorder()
 	testServer.Config.Handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusFound, rr.Code, rr.Body.String())
-	assert.Equal(t, webAdminLoginPath, rr.Header().Get("Location"))
+	assert.Equal(t, path.Join(webBasePath, webConsolePathDefault), rr.Header().Get("Location"))
 }
 
 func TestParseRangeRequests(t *testing.T) {
@@ -3825,7 +3825,7 @@ func TestSecureMiddlewareIntegration(t *testing.T) {
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
-	r, err := http.NewRequest(http.MethodGet, webClientLoginPath, nil)
+	r, err := http.NewRequest(http.MethodGet, webClientLoginPath+"?legacy=1", nil)
 	assert.NoError(t, err)
 	r.Host = "127.0.0.1"
 	server.router.ServeHTTP(rr, r)

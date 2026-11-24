@@ -5,6 +5,7 @@ import { useLang, useT } from '@/lib/i18n';
 import { formatBytes } from '@/lib/format';
 import { errMsg, joinPath, parentPath, UploadAborted, uploadFile } from './api';
 import { filesDict } from './i18n';
+import type { FilesClient } from './fsclient';
 
 /*
  * Upload queue shared by every mount of the files page: transfers keep going
@@ -18,6 +19,8 @@ export interface UploadItem {
   file: File;
   /** Full destination path. */
   path: string;
+  /** Account the file goes to (the user, or a user an administrator acts as). */
+  fc: FilesClient;
   loaded: number;
   status: UploadStatus;
   error?: string;
@@ -55,7 +58,7 @@ function pump() {
 function start(it: UploadItem) {
   patch(it.id, { status: 'uploading', loaded: 0, error: undefined });
   let last = 0;
-  const h = uploadFile(it.path, it.file, (loaded) => {
+  const h = uploadFile(it.fc, it.path, it.file, (loaded) => {
     // Throttle re-renders to ~10/s per file.
     const now = performance.now();
     if (now - last < 100 && loaded < it.file.size) return;
@@ -85,9 +88,9 @@ export interface QueuedFile {
 }
 
 export const uploads = {
-  enqueue(dir: string, files: QueuedFile[]) {
+  enqueue(fc: FilesClient, dir: string, files: QueuedFile[]) {
     for (const f of files) {
-      items.push({ id: `u${++seq}`, file: f.file, path: joinPath(dir, f.relPath ?? f.file.name), loaded: 0, status: 'queued' });
+      items.push({ id: `u${++seq}`, fc, file: f.file, path: joinPath(dir, f.relPath ?? f.file.name), loaded: 0, status: 'queued' });
     }
     emit();
     pump();

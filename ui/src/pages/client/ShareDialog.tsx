@@ -16,7 +16,6 @@ import {
   useToast,
   type RadioCardOption,
 } from '@/components/ui';
-import { api, request } from '@/api/client';
 import { useCommon, useLang, useT } from '@/lib/i18n';
 import {
   copyText,
@@ -32,6 +31,7 @@ import {
   type UserShare,
 } from './api';
 import { sharesDict } from './i18n';
+import { useFilesClient } from './fsclient';
 import { longDate } from './when';
 
 const DAY = 86_400_000;
@@ -85,6 +85,7 @@ export function ShareDialog(props: ShareDialogProps) {
   const toast = useToast();
   const confirm = useConfirm();
   const qc = useQueryClient();
+  const fc = useFilesClient();
   const perms = useClientPerms();
   const pwdRequired = !perms.sharesNoPassword;
   const isCreate = props.mode === 'create';
@@ -122,8 +123,8 @@ export function ShareDialog(props: ShareDialogProps) {
   const knownDir = props.mode === 'create' ? props.isDir : undefined;
   // Upload scopes need exactly one folder: check it when the caller does not know.
   const dirQ = useQuery({
-    queryKey: ['user-dirs', single ?? '', 'is-dir'],
-    queryFn: ({ signal }) => listDir(single ?? '/', signal).then(() => true),
+    queryKey: ['user-dirs', fc.id, single ?? '', 'is-dir'],
+    queryFn: ({ signal }) => listDir(fc, single ?? '/', signal).then(() => true),
     enabled: !!single && knownDir === undefined,
     retry: false,
     staleTime: 60_000,
@@ -134,8 +135,8 @@ export function ShareDialog(props: ShareDialogProps) {
   /* ---------- Load (edit) ---------- */
 
   const editQ = useQuery({
-    queryKey: [...sharesKey, props.mode === 'edit' ? props.id : ''],
-    queryFn: () => api.get<UserShare>(`/user/shares/${encodeURIComponent(props.mode === 'edit' ? props.id : '')}`),
+    queryKey: [...sharesKey, fc.id, props.mode === 'edit' ? props.id : ''],
+    queryFn: () => fc.request<UserShare>(`/user/shares/${encodeURIComponent(props.mode === 'edit' ? props.id : '')}`),
     enabled: props.mode === 'edit',
     retry: false,
     staleTime: 0,
@@ -173,7 +174,7 @@ export function ShareDialog(props: ShareDialogProps) {
     const pwd = pwdRequired ? generatePassword() : '';
     const attempt = async (preset: Preset) => {
       const expiresAt = presetExpiry(preset);
-      const res = await request<Response>('/user/shares', {
+      const res = await fc.request<Response>('/user/shares', {
         method: 'POST',
         body: { ...b, scope: 1, expires_at: expiresAt, password: pwd },
         raw: true,
@@ -225,13 +226,13 @@ export function ShareDialog(props: ShareDialogProps) {
       const password = next.pwdOn ? next.pwd || (hadPwdRef.current ? REDACTED : '') : '';
       setPending((n) => n + 1);
       try {
-        await api.put(`/user/shares/${encodeURIComponent(shareId)}`, {
+        await fc.request(`/user/shares/${encodeURIComponent(shareId)}`, { method: 'PUT', body: {
           ...b,
           id: shareId,
           scope: next.scope,
           expires_at: next.expiresAt,
           password,
-        });
+        } });
         hadPwdRef.current = !!password;
         savedRef.current = next;
         setSavedOnce(true);
@@ -339,7 +340,7 @@ export function ShareDialog(props: ShareDialogProps) {
     setDeleting(true);
     try {
       await chain.current;
-      await api.del(`/user/shares/${encodeURIComponent(id)}`);
+      await fc.request(`/user/shares/${encodeURIComponent(id)}`, { method: 'DELETE' });
       toast({ title: t('linkDeleted'), tone: 'ok' });
       await qc.invalidateQueries({ queryKey: sharesKey });
       props.onClose();
@@ -376,7 +377,9 @@ export function ShareDialog(props: ShareDialogProps) {
   const footer = (
     <div className="share-dlg__foot">
       <p className="share-dlg__note">
-        {isCreate ? (
+        {isCreate && fc.actingAs ? (
+          t('footerActingAs', { name: fc.actingAs })
+        ) : isCreate ? (
           <>
             {t('footer')}{' '}
             <Link to="/shares" className="share-dlg__mylink" onClick={close}>

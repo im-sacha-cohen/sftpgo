@@ -1,9 +1,10 @@
 // Helpers for the end-user ("Mon espace") screens: paths, downloads, uploads
 // and the web client restrictions carried by the user JWT.
-import { ApiError, buildUrl, getSession, request, setSession } from '@/api/client';
+import { ApiError, buildUrl, setSession } from '@/api/client';
 import type { DirEntry, Share } from '@/api/types';
 import { useAuth } from '@/lib/auth';
 import { config } from '@/lib/config';
+import { useFilesClient, type FilesClient } from './fsclient';
 
 /* ---------- Paths ---------- */
 
@@ -70,10 +71,10 @@ export function entryTime(e: DirEntry) {
   return e.last_modified ? Date.parse(e.last_modified) || 0 : 0;
 }
 
-export const dirKey = (dir: string) => ['user-dirs', dir] as const;
+export const dirKey = (fc: FilesClient, dir: string) => ['user-dirs', fc.id, dir] as const;
 
-export function listDir(dir: string, signal?: AbortSignal) {
-  return request<DirEntry[] | null>('/user/dirs', { query: { path: dir }, signal }).then((r) => r ?? []);
+export function listDir(fc: FilesClient, dir: string, signal?: AbortSignal) {
+  return fc.request<DirEntry[] | null>('/user/dirs', { query: { path: dir }, signal }).then((r) => r ?? []);
 }
 
 /* ---------- Downloads ---------- */
@@ -105,18 +106,18 @@ export function saveBlob(blob: Blob, name: string) {
 }
 
 /** Fetches a file with the bearer token (an <a href> cannot carry it). */
-export async function fetchFile(path: string, signal?: AbortSignal) {
-  return request<Response>('/user/files', { query: { path }, raw: true, signal });
+export async function fetchFile(fc: FilesClient, path: string, signal?: AbortSignal, range?: string) {
+  return fc.request<Response>('/user/files', { query: { path }, raw: true, signal, headers: range ? { Range: range } : undefined });
 }
 
-export async function downloadFile(path: string) {
-  const res = await fetchFile(path);
+export async function downloadFile(fc: FilesClient, path: string) {
+  const res = await fetchFile(fc, path);
   const blob = await res.blob();
   saveBlob(blob, filenameFromDisposition(res.headers.get('Content-Disposition')) ?? baseName(path));
 }
 
-export async function downloadZip(paths: string[]) {
-  const res = await request<Response>('/user/streamzip', { method: 'POST', body: paths, raw: true });
+export async function downloadZip(fc: FilesClient, paths: string[]) {
+  const res = await fc.request<Response>('/user/streamzip', { method: 'POST', body: paths, raw: true });
   const blob = await res.blob();
   saveBlob(blob, filenameFromDisposition(res.headers.get('Content-Disposition')) ?? 'download.zip');
 }
@@ -131,17 +132,23 @@ export interface UploadHandle {
 export class UploadAborted extends Error {}
 
 /** Uploads one file to `path` (full file path), creating missing parents. */
-export function uploadFile(path: string, file: File, onProgress: (loaded: number) => void): UploadHandle {
+export function uploadFile(fc: FilesClient, path: string, file: File, onProgress: (loaded: number) => void): UploadHandle {
   const xhr = new XMLHttpRequest();
+  let aborted = false;
   const promise = new Promise<void>((resolve, reject) => {
-    const s = getSession();
-    if (!s || s.expiresAt <= Date.now()) {
-      if (s) setSession(null, 'expired');
-      reject(new ApiError(401, 'Session expired'));
-      return;
-    }
+    fc.token().then(
+      (token) => {
+        if (aborted) {
+          reject(new UploadAborted('aborted'));
+          return;
+        }
+        send(token);
+      },
+      (e) => reject(e),
+    );
+    const send = (token: string) => {
     xhr.open('POST', buildUrl('/user/files/upload', { path, mkdir_parents: 'true' }));
-    xhr.setRequestHeader('Authorization', `Bearer ${s.token}`);
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
     if (file.lastModified) xhr.setRequestHeader('X-SFTPGO-MTIME', String(file.lastModified));
     xhr.upload.onprogress = (e) => onProgress(e.loaded);
@@ -160,14 +167,21 @@ export function uploadFile(path: string, file: File, onProgress: (loaded: number
       } catch {
         /* not JSON */
       }
-      if (xhr.status === 401) setSession(null, 'expired');
+      if (xhr.status === 401 && !fc.actingAs) setSession(null, 'expired');
       reject(new ApiError(xhr.status, message, detail));
     };
     xhr.onerror = () => reject(new ApiError(0, 'Network error'));
     xhr.onabort = () => reject(new UploadAborted('aborted'));
     xhr.send(file);
+    };
   });
-  return { promise, abort: () => xhr.abort() };
+  return {
+    promise,
+    abort: () => {
+      aborted = true;
+      xhr.abort();
+    },
+  };
 }
 
 /* ---------- Shares ---------- */
@@ -190,6 +204,7 @@ export function shareUrl(id: string) {
 }
 
 export const sharesKey = ['user-shares'] as const;
+export const sharesKeyFor = (fc: FilesClient) => ['user-shares', fc.id] as const;
 
 const RESERVED_NAMES = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
 // / \ : * ? " < > | plus control and invisible format characters.
@@ -251,7 +266,8 @@ export async function copyText(text: string) {
 /** Restrictions from the user's JWT (`filters.web_client`). */
 export function useClientPerms() {
   const { session } = useAuth();
-  const p = session?.kind === 'user' ? session.permissions : [];
+  const fc = useFilesClient();
+  const p = fc.actingAs ? fc.perms : session?.kind === 'user' ? session.permissions : [];
   return {
     write: !p.includes('write-disabled'),
     shares: !p.includes('shares-disabled'),

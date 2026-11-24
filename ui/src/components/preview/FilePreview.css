@@ -1,25 +1,17 @@
 /* ---------- Layout: list + side panel ---------- */
-.fp-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-.fp-layout.has-panel {
-  grid-template-columns: minmax(0, 1fr) clamp(360px, 34vw, 480px);
-}
-.fp-layout.has-panel:has(.fp-panel.is-wide) {
-  grid-template-columns: minmax(0, 1fr) clamp(420px, 58vw, 980px);
-}
+/* The panel floats over the page: opening a file moves nothing. */
 .fp-layout__main {
   min-width: 0;
 }
 
 /* ---------- Panel ---------- */
 .fp-panel {
-  position: sticky;
-  top: 84px;
-  max-height: calc(100vh - 104px);
+  position: fixed;
+  z-index: 50;
+  top: 80px;
+  right: 16px;
+  bottom: 16px;
+  width: clamp(360px, 32vw, 460px);
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -29,6 +21,9 @@
   box-shadow: var(--shadow);
   overflow: hidden;
   animation: fp-in 180ms var(--ease);
+}
+.fp-panel.is-wide {
+  width: min(980px, calc(100vw - 32px));
 }
 @keyframes fp-in {
   from {
@@ -97,6 +92,7 @@
 /* ---------- Viewers ---------- */
 .fp {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   min-height: 200px;
@@ -158,13 +154,11 @@
 
 /* ---------- Small screens: the panel covers the page ---------- */
 @media (max-width: 900px) {
-  .fp-layout.has-panel,
-  .fp-layout.has-panel:has(.fp-panel.is-wide) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .fp-panel {
+  .fp-panel,
+  .fp-panel.is-wide {
     position: fixed;
     inset: 0;
+    width: auto;
     top: 0;
     z-index: 60;
     max-height: none;
@@ -177,4 +171,11 @@
   .fp__img {
     max-height: calc(100vh - 200px);
   }
+}
+
+.fp__details {
+  flex: 1 0 100%;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
 }

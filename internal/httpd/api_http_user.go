@@ -58,7 +58,19 @@ func addUserConnection(w http.ResponseWriter, r *http.Request, withResponseContr
 	connID := xid.New().String()
 	protocol := getProtocolFromRequest(r)
 	connectionID := fmt.Sprintf("%v_%v", protocol, connID)
-	if err := checkHTTPClientUser(&user, r, connectionID, false, false); err != nil {
+	if claims.ImpersonatedBy != "" {
+		// An administrator acting as the user, as for the admin file routes:
+		// the user's IP filters, login methods and sessions limit are not
+		// checked, and the data transfer quota is not used up. The user's
+		// permissions, file filters and disk quota still apply.
+		if err := user.CheckAccountValidity(); err != nil {
+			sendAPIResponse(w, r, err, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+			return nil, err
+		}
+		user.UploadDataTransfer = 0
+		user.DownloadDataTransfer = 0
+		user.TotalDataTransfer = 0
+	} else if err := checkHTTPClientUser(&user, r, connectionID, false, false); err != nil {
 		sendAPIResponse(w, r, err, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		return nil, err
 	}
@@ -72,7 +84,13 @@ func addUserConnection(w http.ResponseWriter, r *http.Request, withResponseContr
 			request:        r,
 		}
 	}
-	if err = common.Connections.Add(connection); err != nil {
+	var tracked common.ActiveConnection = connection
+	if claims.ImpersonatedBy != "" {
+		// Listed as the administrator's connection, not counted as a user session.
+		tracked = &adminUserConnection{Connection: connection,
+			label: fmt.Sprintf("admin:%s@%s", claims.ImpersonatedBy, user.Username)}
+	}
+	if err = common.Connections.Add(tracked); err != nil {
 		sendAPIResponse(w, r, err, "Unable to add connection", http.StatusTooManyRequests)
 		return connection, err
 	}

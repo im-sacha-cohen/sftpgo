@@ -163,6 +163,17 @@ func jwtAuthenticatorAPIUser(next http.Handler) http.Handler {
 		if err := validateJWTToken(w, r, tokenAudienceAPIUser); err != nil {
 			return
 		}
+		if claims, err := jwt.FromContext(r.Context()); err == nil && claims.ImpersonatedBy != "" {
+			if err := checkImpersonatedToken(r, claims); err != nil {
+				logger.Debug(logSender, "", "token of admin %q acting as user %q refused: %v",
+					claims.ImpersonatedBy, claims.Username, err)
+				_ = invalidateToken(r)
+				sendAPIResponse(w, r, nil, "Your token is no longer valid", http.StatusUnauthorized)
+				return
+			}
+			logger.Info(logSender, "", "admin %q as user %q: %s %s", claims.ImpersonatedBy, claims.Username,
+				r.Method, r.URL.Path)
+		}
 
 		// Token is authenticated, pass it through
 		next.ServeHTTP(w, r)

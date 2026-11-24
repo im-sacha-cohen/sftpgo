@@ -5,6 +5,7 @@ import { EmptyState, IconButton, Skeleton } from '@/components/ui';
 import { useT } from '@/lib/i18n';
 import { baseName, dirKey, errMsg, isDir, joinPath, listDir, parentPath, splitPath } from './api';
 import { filesDict } from './i18n';
+import { useFilesClient } from './fsclient';
 
 interface PathBrowserProps {
   /** Directory being browsed. */
@@ -24,7 +25,8 @@ interface PathBrowserProps {
 /** Compact folder browser used by the move/copy drawer and the share editor. */
 export function PathBrowser({ dir, onDirChange, showFiles, onPick, picked = [], disabled, pickLabel }: PathBrowserProps) {
   const t = useT(filesDict);
-  const q = useQuery({ queryKey: dirKey(dir), queryFn: ({ signal }) => listDir(dir, signal) });
+  const fc = useFilesClient();
+  const q = useQuery({ queryKey: dirKey(fc, dir), queryFn: ({ signal }) => listDir(fc, dir, signal) });
   const rows = useMemo(() => {
     const all = (q.data ?? []).filter((e) => showFiles || isDir(e));
     return all.sort((a, b) => Number(isDir(b)) - Number(isDir(a)) || (a.name ?? '').localeCompare(b.name ?? '', undefined, { numeric: true }));

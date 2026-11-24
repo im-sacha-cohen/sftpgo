@@ -4151,6 +4151,39 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         default:
           $ref: '#/components/responses/DefaultResponse'
+  '/users/{username}/impersonate':
+    parameters:
+      - name: username
+        in: path
+        description: the username
+        required: true
+        schema:
+          type: string
+    post:
+      tags:
+        - users
+      summary: Act as a user
+      description: 'Returns a short-lived (15 minutes) user access token for the specified user, to use the user REST API (/user/...) on their behalf. The user password, second factor and IP filters are not checked and the last login is not updated; disabled or expired users are refused. The token is bound to the caller IP address and becomes invalid as soon as the user or the administrator is modified. The user own permissions, file filters and disk quota apply; data transfer limits do not. Password, profile, two-factor authentication and recovery code APIs are refused with this token. Requires the view_user_files permission. Without the edit_users permission the token is read-only: no uploads, writes or shares. An administrator with a role can only act as the users of that role'
+      operationId: impersonate_user
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultResponse'
   '/users/{username}/forgot-password':
     parameters:
       - name: username

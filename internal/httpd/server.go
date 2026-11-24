@@ -239,8 +239,28 @@ func (s *httpdServer) handleClientWebLogin(w http.ResponseWriter, r *http.Reques
 		http.Redirect(w, r, webAdminSetupPath, http.StatusFound)
 		return
 	}
+	if s.redirectLoginToConsole(w, r) {
+		return
+	}
 	msg := getFlashMessage(w, r)
 	s.renderClientLoginPage(w, r, msg.getI18nError())
+}
+
+// redirectLoginToConsole sends the legacy WebAdmin and WebClient sign-in pages
+// to the Console, the default UI. The legacy page is still shown when the
+// binding uses OIDC (the Console has no OIDC sign-in yet), when it has a
+// message to display (password reset, OIDC error…), when it was reached from a
+// legacy page (?next=…) or when asked for with ?legacy=1.
+func (s *httpdServer) redirectLoginToConsole(w http.ResponseWriter, r *http.Request) bool {
+	q := r.URL.Query()
+	if s.binding.OIDC.isEnabled() || q.Get("legacy") != "" || q.Get("next") != "" {
+		return false
+	}
+	if c, err := r.Cookie(flashCookieName); err == nil && c.Value != "" {
+		return false
+	}
+	http.Redirect(w, r, path.Join(webBasePath, webConsolePathDefault, "login"), http.StatusFound)
+	return true
 }
 
 func (s *httpdServer) handleWebClientLoginPost(w http.ResponseWriter, r *http.Request) {
@@ -632,6 +652,9 @@ func (s *httpdServer) handleWebAdminLogin(w http.ResponseWriter, r *http.Request
 	}
 	if !hasAdmin {
 		http.Redirect(w, r, webAdminSetupPath, http.StatusFound)
+		return
+	}
+	if s.redirectLoginToConsole(w, r) {
 		return
 	}
 	msg := getFlashMessage(w, r)
@@ -1030,6 +1053,10 @@ func (s *httpdServer) checkCookieExpiration(w http.ResponseWriter, r *http.Reque
 	if claims.Username == "" || claims.Subject == "" {
 		return
 	}
+	// A token an administrator got to act as a user is never extended.
+	if claims.ImpersonatedBy != "" {
+		return
+	}
 	if time.Until(claims.Expiry.Time()) > cookieRefreshThreshold {
 		return
 	}
@@ -1342,25 +1369,18 @@ func (s *httpdServer) initializeRouter() error {
 		if s.binding.OIDC.isEnabled() {
 			s.router.Get(webOIDCRedirectPath, s.handleOIDCRedirect)
 		}
-		if s.enableWebClient {
-			s.router.Get(webRootPath, func(w http.ResponseWriter, r *http.Request) {
-				r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
-				s.redirectToWebPath(w, r, webClientLoginPath)
-			})
-			s.router.Get(webBasePath, func(w http.ResponseWriter, r *http.Request) {
-				r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
-				s.redirectToWebPath(w, r, webClientLoginPath)
-			})
-		} else {
-			s.router.Get(webRootPath, func(w http.ResponseWriter, r *http.Request) {
-				r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
-				s.redirectToWebPath(w, r, webAdminLoginPath)
-			})
-			s.router.Get(webBasePath, func(w http.ResponseWriter, r *http.Request) {
-				r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
-				s.redirectToWebPath(w, r, webAdminLoginPath)
-			})
-		}
+		// The Console is the default UI, for administrators and users alike: it
+		// has its own sign-in page. The legacy WebAdmin and WebClient stay
+		// reachable at their own paths (OIDC sign-in still goes through them).
+		consolePath := path.Join(webBasePath, webConsolePathDefault)
+		s.router.Get(webRootPath, func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
+			s.redirectToWebPath(w, r, consolePath)
+		})
+		s.router.Get(webBasePath, func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
+			s.redirectToWebPath(w, r, consolePath)
+		})
 	}
 
 	s.setupWebClientRoutes()
@@ -1449,6 +1469,9 @@ func (s *httpdServer) setupRESTAPIRoutes() {
 					Post(userPath+"/{username}/fs/files/upload", adminFsUpload(getAdminUserConnection))
 				router.With(s.checkPerms(dataprovider.PermAdminViewUserFiles), s.checkPerms(dataprovider.PermAdminChangeUsers)).
 					Post(userPath+"/{username}/fs/file-actions/move", adminFsMove(getAdminUserConnection))
+				// Act as the user: a short-lived user API token, read-only without edit_users.
+				router.With(s.checkPerms(dataprovider.PermAdminViewUserFiles)).
+					Post(userPath+"/{username}/impersonate", s.impersonateUser)
 				router.With(s.checkPerms(dataprovider.PermAdminManageFolders)).Get(spacesDefaultsPath, getSpacesDefaults)
 				router.With(s.checkPerms(dataprovider.PermAdminManageFolders)).Get(folderPath, getFolders)
 				router.With(s.checkPerms(dataprovider.PermAdminManageFolders)).Get(folderPath+"/{name}", getFolderByName)
@@ -1544,22 +1567,22 @@ func (s *httpdServer) setupRESTAPIRoutes() {
 			router.Use(jwtAuthenticatorAPIUser)
 
 			router.With(forbidAPIKeyAuthentication).Get(userLogoutPath, s.logout)
-			router.With(forbidAPIKeyAuthentication, s.checkHTTPUserPerm(sdk.WebClientPasswordChangeDisabled)).
+			router.With(forbidAPIKeyAuthentication, forbidImpersonation, s.checkHTTPUserPerm(sdk.WebClientPasswordChangeDisabled)).
 				Put(userPwdPath, changeUserPassword)
 			router.With(forbidAPIKeyAuthentication).Get(userProfilePath, getUserProfile)
-			router.With(forbidAPIKeyAuthentication, s.checkAuthRequirements).Put(userProfilePath, updateUserProfile)
+			router.With(forbidAPIKeyAuthentication, forbidImpersonation, s.checkAuthRequirements).Put(userProfilePath, updateUserProfile)
 			// user TOTP APIs
-			router.With(forbidAPIKeyAuthentication, s.checkHTTPUserPerm(sdk.WebClientMFADisabled)).
+			router.With(forbidAPIKeyAuthentication, forbidImpersonation, s.checkHTTPUserPerm(sdk.WebClientMFADisabled)).
 				Get(userTOTPConfigsPath, getTOTPConfigs)
-			router.With(forbidAPIKeyAuthentication, s.checkHTTPUserPerm(sdk.WebClientMFADisabled)).
+			router.With(forbidAPIKeyAuthentication, forbidImpersonation, s.checkHTTPUserPerm(sdk.WebClientMFADisabled)).
 				Post(userTOTPGeneratePath, generateTOTPSecret)
-			router.With(forbidAPIKeyAuthentication, s.checkHTTPUserPerm(sdk.WebClientMFADisabled)).
+			router.With(forbidAPIKeyAuthentication, forbidImpersonation, s.checkHTTPUserPerm(sdk.WebClientMFADisabled)).
 				Post(userTOTPValidatePath, validateTOTPPasscode)
-			router.With(forbidAPIKeyAuthentication, s.checkHTTPUserPerm(sdk.WebClientMFADisabled)).
+			router.With(forbidAPIKeyAuthentication, forbidImpersonation, s.checkHTTPUserPerm(sdk.WebClientMFADisabled)).
 				Post(userTOTPSavePath, saveTOTPConfig)
-			router.With(forbidAPIKeyAuthentication, s.checkHTTPUserPerm(sdk.WebClientMFADisabled)).
+			router.With(forbidAPIKeyAuthentication, forbidImpersonation, s.checkHTTPUserPerm(sdk.WebClientMFADisabled)).
 				Get(user2FARecoveryCodesPath, getRecoveryCodes)
-			router.With(forbidAPIKeyAuthentication, s.checkHTTPUserPerm(sdk.WebClientMFADisabled)).
+			router.With(forbidAPIKeyAuthentication, forbidImpersonation, s.checkHTTPUserPerm(sdk.WebClientMFADisabled)).
 				Post(user2FARecoveryCodesPath, generateRecoveryCodes)
 
 			router.With(s.checkAuthRequirements, compressor.Handler).Get(userDirsPath, readUserFolder)

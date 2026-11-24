@@ -8,16 +8,31 @@
 // back to downloading the file into a Blob.
 
 import { buildUrl, getSession, type Query } from '@/api/client';
+import { currentActAsToken } from '@/pages/client/fsclient';
 import { config } from './config';
 
 const MARK = '__stream';
+const AS = '__as';
 let ready: Promise<boolean> | null = null;
 
 function answerTokenRequests() {
   navigator.serviceWorker.addEventListener('message', (e: MessageEvent) => {
     if (e.data?.type !== 'sftpgo-stream-token' || !e.ports[0]) return;
+    const port = e.ports[0];
     const s = getSession();
-    e.ports[0].postMessage({ token: s && s.expiresAt > Date.now() ? s.token : null });
+    if (!s || s.expiresAt <= Date.now()) {
+      port.postMessage({ token: null });
+      return;
+    }
+    let as: string | null = null;
+    try {
+      as = new URL(String(e.data.url ?? ''), window.location.href).searchParams.get(AS);
+    } catch {
+      as = null;
+    }
+    // Only an administrator session can act as someone else.
+    if (as && s.kind === 'admin') void currentActAsToken(as).then((token) => port.postMessage({ token }));
+    else port.postMessage({ token: as ? null : s.token });
   });
 }
 
@@ -56,7 +71,7 @@ export function streamingReady(): Promise<boolean> {
 }
 
 /** URL of an API file download that the worker will authenticate (GET only). */
-export function streamUrl(path: string, query?: Query) {
-  const url = buildUrl(path, query);
+export function streamUrl(path: string, query?: Query, actingAs?: string) {
+  const url = buildUrl(path, actingAs ? { ...query, [AS]: actingAs } : query);
   return `${url}${url.includes('?') ? '&' : '?'}${MARK}=1`;
 }

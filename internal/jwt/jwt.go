@@ -72,6 +72,9 @@ type Claims struct {
 	RequiredTwoFactorProtocols []string `json:"2fa_protos,omitempty"`
 	HideUserPageSections       int      `json:"hus,omitempty"`
 	Ref                        string   `json:"ref,omitempty"`
+	// ImpersonatedBy is the administrator acting as the user, empty for a
+	// token the user obtained by logging in.
+	ImpersonatedBy string `json:"imp,omitempty"`
 }
 
 func (c *Claims) SetIssuedAt(t time.Time) {

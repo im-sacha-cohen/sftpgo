@@ -33,7 +33,8 @@ func TestJWTToken(t *testing.T) {
 	require.NoError(t, err)
 	username := util.GenerateUniqueID()
 	claims := Claims{
-		Username: username,
+		Username:       username,
+		ImpersonatedBy: "admin",
 		Claims: jwt.Claims{
 			Audience:  jwt.Audience{"test"},
 			Expiry:    jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
@@ -48,6 +49,7 @@ func TestJWTToken(t *testing.T) {
 	parsed, err := VerifyToken(s, token)
 	require.NoError(t, err)
 	require.Equal(t, username, parsed.Username)
+	require.Equal(t, "admin", parsed.ImpersonatedBy)
 
 	ja1, err := NewSigner(jose.HS256, util.GenerateRandomBytes(32))
 	require.NoError(t, err)

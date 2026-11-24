@@ -70,7 +70,7 @@ export function onSessionChange(l: (s: Session | null, reason?: 'expired') => vo
   };
 }
 
-function decodeJwt(token: string): Record<string, unknown> {
+export function decodeJwt(token: string): Record<string, unknown> {
   try {
     const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
     const json = decodeURIComponent(
@@ -183,6 +183,11 @@ export interface RequestOptions {
   signal?: AbortSignal;
   /** Return the Response instead of parsing JSON (downloads). */
   raw?: boolean;
+  /**
+   * Token to send instead of the session's (an admin acting as a user). A 401
+   * then only means that token is no longer valid: the session is kept.
+   */
+  bearer?: string;
 }
 
 export function buildUrl(path: string, query?: Query) {
@@ -205,7 +210,7 @@ export async function request<T = unknown>(path: string, opts: RequestOptions = 
     setSession(null, 'expired');
     throw new ApiError(401, 'Session expired');
   }
-  const headers: Record<string, string> = { Authorization: `Bearer ${s.token}`, ...opts.headers };
+  const headers: Record<string, string> = { Authorization: `Bearer ${opts.bearer ?? s.token}`, ...opts.headers };
   let body: BodyInit | undefined = opts.rawBody;
   if (opts.body !== undefined) {
     headers['Content-Type'] = 'application/json';
@@ -218,7 +223,7 @@ export async function request<T = unknown>(path: string, opts: RequestOptions = 
     signal: opts.signal,
   });
   if (res.status === 401) {
-    setSession(null, 'expired');
+    if (!opts.bearer) setSession(null, 'expired');
     throw await parseError(res);
   }
   if (!res.ok) throw await parseError(res);

@@ -8,12 +8,14 @@
 // the worker asks the requesting page for it each time (see src/lib/stream.ts).
 
 const MARK = '__stream';
+// Set when an administrator acts as a user: the page answers with that user's token.
+const AS = '__as';
 const API_BASE = new URL(self.location.href).searchParams.get('api') || '/api/v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
-function askToken(client) {
+function askToken(client, url) {
   return new Promise((resolve) => {
     const channel = new MessageChannel();
     const timer = setTimeout(() => resolve(null), 3000);
@@ -21,7 +23,7 @@ function askToken(client) {
       clearTimeout(timer);
       resolve((e.data && e.data.token) || null);
     };
-    client.postMessage({ type: 'sftpgo-stream-token' }, [channel.port2]);
+    client.postMessage({ type: 'sftpgo-stream-token', url }, [channel.port2]);
   });
 }
 
@@ -36,9 +38,10 @@ self.addEventListener('fetch', (event) => {
     (async () => {
       // Navigations have no clientId: a marked URL opened directly gets no token.
       const client = event.clientId ? await self.clients.get(event.clientId) : null;
-      const token = client ? await askToken(client) : null;
+      const token = client ? await askToken(client, url.toString()) : null;
       if (!token) return new Response('Not authenticated', { status: 401 });
       url.searchParams.delete(MARK);
+      url.searchParams.delete(AS);
       const headers = new Headers({ Authorization: `Bearer ${token}` });
       for (const name of ['Range', 'If-Range']) {
         const value = request.headers.get(name);
