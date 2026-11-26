@@ -23,8 +23,10 @@ import {
   FolderOpen,
   FolderPlus,
   LayoutGrid,
+  ListChecks,
   Link2,
   List,
+  Minus,
   Pencil,
   Share2,
   Trash2,
@@ -95,6 +97,19 @@ function readView(): View {
   }
 }
 type Sort = { id: SortId; dir: 'asc' | 'desc' };
+const SORT_KEY = 'sftpgo-files-sort';
+const SORT_IDS: SortId[] = ['name', 'modified', 'size', 'kind'];
+
+/** The sort last chosen, kept for every folder, person and space (like list/grid). */
+function readSort(): Sort {
+  try {
+    const v = JSON.parse(localStorage.getItem(SORT_KEY) ?? 'null') as Partial<Sort> | null;
+    if (v && SORT_IDS.includes(v.id as SortId) && (v.dir === 'asc' || v.dir === 'desc')) return { id: v.id as SortId, dir: v.dir };
+  } catch {
+    /* ignore */
+  }
+  return { id: 'name', dir: 'asc' };
+}
 type ShareTarget = { paths: string[]; label: string; isDir: boolean };
 
 const INTERACTIVE = 'button, a, input, textarea, [role="menu"], [role="menuitem"]';
@@ -160,7 +175,15 @@ export function Explorer({ dir, route, rootLabel, context, onChanged, actionsInS
   const isLive = (e: DirEntry, now = Date.now()) => isRecent(e, now) && growing.has(e.name ?? '');
   const entries = useMemo(() => q.data ?? [], [q.data]);
 
-  const [sort, setSort] = useState<Sort>({ id: 'name', dir: 'asc' });
+  const [sort, setSortState] = useState<Sort>(readSort);
+  const setSort = (v: Sort) => {
+    setSortState(v);
+    try {
+      localStorage.setItem(SORT_KEY, JSON.stringify(v));
+    } catch {
+      /* ignore */
+    }
+  };
   const [view, setViewState] = useState<View>(readView);
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
   const setView = (v: View) => {
@@ -306,7 +329,16 @@ export function Explorer({ dir, route, rootLabel, context, onChanged, actionsInS
     try {
       const single = names.length === 1 ? byName.get(names[0]) : undefined;
       if (single && !isDir(single)) await downloadFile(fc, joinPath(dir, names[0]));
-      else await downloadZip(fc, names.map((n) => joinPath(dir, n)));
+      else if (perms.zip) await downloadZip(fc, names.map((n) => joinPath(dir, n)));
+      else {
+        // No zip here (spaces): files one by one, folders can't be downloaded.
+        const files = names.filter((n) => {
+          const e = byName.get(n);
+          return e && !isDir(e);
+        });
+        for (const n of files) await downloadFile(fc, joinPath(dir, n));
+        if (files.length < names.length) toast({ title: t('noFolderDownload'), tone: 'bad' });
+      }
     } catch (e) {
       toast({ title: c('error'), description: errMsg(e), tone: 'bad' });
     } finally {
@@ -490,7 +522,8 @@ export function Explorer({ dir, route, rootLabel, context, onChanged, actionsInS
       selectRange(idx);
       return;
     }
-    if (e.metaKey || e.ctrlKey) {
+    // Once something is selected, a click adds to or removes from the selection (Esc clears it).
+    if (e.metaKey || e.ctrlKey || (selected.size > 0 && e.detail !== 0)) {
       toggle(idx);
       return;
     }
@@ -603,7 +636,7 @@ export function Explorer({ dir, route, rootLabel, context, onChanged, actionsInS
       items.push(
         { label: t('rename'), icon: Pencil, kbd: 'F2', onSelect: () => setRenaming(e) },
         { label: t('move'), icon: ArrowRightLeft, onSelect: () => setMoveCopy({ mode: 'move', names: [name] }) },
-        { label: t('copy'), icon: Copy, onSelect: () => setMoveCopy({ mode: 'copy', names: [name] }) },
+        ...(perms.copy ? [{ label: t('copy'), icon: Copy, onSelect: () => setMoveCopy({ mode: 'copy', names: [name] }) }] : []),
         'separator',
         { label: c('delete'), icon: Trash2, danger: true, onSelect: () => void remove([name]) },
       );
@@ -611,11 +644,12 @@ export function Explorer({ dir, route, rootLabel, context, onChanged, actionsInS
     return items;
   };
 
-  const sortHeader = (id: SortId, label: string, className?: string) => {
+  const sortHeader = (id: SortId, label: string, className?: string, before?: ReactNode) => {
     const on = sort.id === id;
     const Arrow = sort.dir === 'asc' ? ArrowUp : ArrowDown;
     return (
       <th scope="col" className={className} aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}>
+        {before}
         <button
           type="button"
           className={cx('files-sort', on && 'is-on')}
@@ -653,6 +687,22 @@ export function Explorer({ dir, route, rootLabel, context, onChanged, actionsInS
 
   const dateWords = { today: (time: string) => t('today', { time }), yesterday: (time: string) => t('yesterday', { time }) };
   const nSel = selection.length;
+  const allSelected = rows.length > 0 && nSel === rows.length;
+  const selectAll = () => setSelected(new Set(rows.map((r) => r.name ?? '')));
+  const selectAllBox = (
+    <button
+      type="button"
+      role="checkbox"
+      className={cx('files-all', nSel > 0 && 'is-on')}
+      aria-checked={allSelected ? true : nSel > 0 ? 'mixed' : false}
+      aria-label={allSelected ? t('clearSel') : t('selectAll')}
+      title={allSelected ? t('clearSel') : t('selectAll')}
+      disabled={!rows.length}
+      onClick={() => (allSelected ? setSelected(new Set()) : selectAll())}
+    >
+      {allSelected ? <Check size={13} strokeWidth={3} aria-hidden="true" /> : nSel > 0 ? <Minus size={13} strokeWidth={3} aria-hidden="true" /> : null}
+    </button>
+  );
   const now = Date.now();
   const kindLabel = (e: DirEntry) => (isDir(e) ? t('kindFolder') : t(`kind_${fileKind(e.name ?? '')}`));
 
@@ -666,6 +716,11 @@ export function Explorer({ dir, route, rootLabel, context, onChanged, actionsInS
       <div className="files-selbar" role="toolbar" aria-label={t(nSel > 1 ? 'selectedMany' : 'selected', { n: nSel })}>
         <IconButton icon={X} size="sm" label={t('clearSel')} className="files-selbar__clear" onClick={() => setSelected(new Set())} />
         <span className="files-selbar__count">{t(nSel > 1 ? 'selectedMany' : 'selected', { n: nSel })}</span>
+        {!allSelected && (
+          <Button size="sm" variant="ghost" icon={ListChecks} onClick={selectAll}>
+            {t('selectAllN', { n: rows.length })}
+          </Button>
+        )}
         <span className="files-selbar__sep" aria-hidden="true" />
         {perms.shares && (
           <Button size="sm" variant="ghost" icon={Link2} onClick={() => share(selNames)}>
@@ -673,16 +728,23 @@ export function Explorer({ dir, route, rootLabel, context, onChanged, actionsInS
           </Button>
         )}
         <Button size="sm" variant="ghost" icon={Download} loading={downloading} onClick={() => void download(selNames)}>
-          {nSel > 1 || selection.some(isDir) ? t('downloadZip') : t('download')}
+          {perms.zip && (nSel > 1 || selection.some(isDir)) ? t('downloadZip') : t('download')}
         </Button>
         {perms.write && (
           <>
+            {nSel === 1 && (
+              <Button size="sm" variant="ghost" icon={Pencil} onClick={() => setRenaming(selection[0])}>
+                {t('rename')}
+              </Button>
+            )}
             <Button size="sm" variant="ghost" icon={ArrowRightLeft} onClick={() => setMoveCopy({ mode: 'move', names: selNames })}>
               {t('move')}
             </Button>
-            <Button size="sm" variant="ghost" icon={Copy} onClick={() => setMoveCopy({ mode: 'copy', names: selNames })}>
-              {t('copy')}
-            </Button>
+            {perms.copy && (
+              <Button size="sm" variant="ghost" icon={Copy} onClick={() => setMoveCopy({ mode: 'copy', names: selNames })}>
+                {t('copy')}
+              </Button>
+            )}
             <Button size="sm" variant="ghost" icon={Trash2} className="files-selbar__bad" onClick={() => void remove(selNames)}>
               {c('delete')}
             </Button>
@@ -767,7 +829,7 @@ export function Explorer({ dir, route, rootLabel, context, onChanged, actionsInS
         >
           {!folder && (
             <span className={`files-tile__thumb files-kind--${kind}`} aria-hidden="true">
-              {thumb ? <img src={streamUrl('/user/files', { path }, fc.actingAs)} alt="" loading="lazy" decoding="async" /> : <Icon size={36} strokeWidth={1.5} />}
+              {thumb ? <img src={streamUrl(fc.api('/user/files'), { path }, fc.actingAs)} alt="" loading="lazy" decoding="async" /> : <Icon size={36} strokeWidth={1.5} />}
               {isLive(e, now) && liveBadge}
             </span>
           )}
@@ -786,6 +848,7 @@ export function Explorer({ dir, route, rootLabel, context, onChanged, actionsInS
               }}
             >
               <Icon size={16} className="files-pick__icon" aria-hidden="true" />
+              <span className="files-pick__box" aria-hidden="true" />
               <Check size={14} strokeWidth={3} className="files-pick__check" aria-hidden="true" />
             </button>
             <span className="files-tile__text">
@@ -802,7 +865,7 @@ export function Explorer({ dir, route, rootLabel, context, onChanged, actionsInS
       );
     };
     content = (
-      <div className="files-gridview">
+      <div className={cx('files-gridview', nSel > 0 && 'has-selection')}>
         {dirs.length > 0 && (
           <section aria-label={t('folders')}>
             <h2 className="files-gridview__title">{t('folders')}</h2>
@@ -819,7 +882,7 @@ export function Explorer({ dir, route, rootLabel, context, onChanged, actionsInS
     );
   } else {
     content = (
-      <table className="files-table" aria-label={title}>
+      <table className={cx('files-table', nSel > 0 && 'has-selection')} aria-label={title}>
         <colgroup>
           <col className="files-c-name" />
           <col className="files-c-mod" />
@@ -829,7 +892,7 @@ export function Explorer({ dir, route, rootLabel, context, onChanged, actionsInS
         </colgroup>
         <thead>
           <tr>
-            {sortHeader('name', t('colName'), 'files-c-name')}
+            {sortHeader('name', t('colName'), 'files-c-name', selectAllBox)}
             {sortHeader('modified', t('colModified'), 'files-c-mod')}
             {sortHeader('size', t('colSize'), 'files-c-size')}
             {sortHeader('kind', t('colKind'), 'files-c-kind')}
@@ -875,6 +938,7 @@ export function Explorer({ dir, route, rootLabel, context, onChanged, actionsInS
                       }}
                     >
                       <Icon size={17} className="files-pick__icon" aria-hidden="true" />
+                      <span className="files-pick__box" aria-hidden="true" />
                       <Check size={14} strokeWidth={3} className="files-pick__check" aria-hidden="true" />
                     </button>
                     <span className="files-name__text">{name}</span>
@@ -909,6 +973,13 @@ export function Explorer({ dir, route, rootLabel, context, onChanged, actionsInS
   }
 
   const openEntry = preview ? byName.get(baseName(preview.path)) : undefined;
+  // Growth is only seen on the second listing: a file opened right away, or
+  // before it started growing, switches to live following once it is seen.
+  // It stays live until closed (the player notices when the recording ends).
+  const openLive = !!openEntry && isLive(openEntry, now);
+  useEffect(() => {
+    if (openLive) setPreview((p) => (p && !p.live ? { ...p, live: true } : p));
+  }, [openLive, preview?.path]);
   const previewDetails = openEntry && (
     <dl className="files-details">
       <dt>{t('colKind')}</dt>

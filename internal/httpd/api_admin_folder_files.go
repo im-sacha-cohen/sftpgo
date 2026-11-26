@@ -107,6 +107,49 @@ func adminReadFolderDir(w http.ResponseWriter, r *http.Request) {
 	renderAPIDirContents(w, lister, false)
 }
 
+// adminGetFolderFilesAsZip streams the requested files and directories of a
+// virtual folder as a zip archive, like /user/streamzip does for a user.
+func adminGetFolderFilesAsZip(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
+	connection, err := getAdminFolderConnection(w, r)
+	if err != nil {
+		if connection != nil {
+			common.Connections.Remove(connection.GetID())
+		}
+		return
+	}
+	defer common.Connections.Remove(connection.GetID())
+
+	var filesList []string
+	if err := render.DecodeJSON(r.Body, &filesList); err != nil {
+		sendAPIResponse(w, r, err, "", http.StatusBadRequest)
+		return
+	}
+	if len(filesList) == 0 {
+		sendAPIResponse(w, r, nil, "Please set the files to download", http.StatusBadRequest)
+		return
+	}
+	for idx := range filesList {
+		filesList[idx] = util.CleanPath(filesList[idx])
+	}
+	filesList = util.RemoveDuplicates(filesList, false)
+	// Check every path first: once the archive has started, an error can only cut the download short.
+	for _, name := range filesList {
+		if name == "/" {
+			sendAPIResponse(w, r, nil, "The root directory cannot be downloaded as a zip", http.StatusBadRequest)
+			return
+		}
+		if _, err := connection.Stat(name, 0); err != nil {
+			sendAPIResponse(w, r, err, fmt.Sprintf("Unable to stat %q", name), getMappedStatusCode(err))
+			return
+		}
+	}
+
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"",
+		getCompressedFileName(getURLParam(r, "name"), filesList)))
+	renderCompressedFiles(w, connection, "/", filesList, nil)
+}
+
 func adminGetFolderFile(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
 	connection, err := getAdminFolderConnection(w, r)

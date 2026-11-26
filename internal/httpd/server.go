@@ -1482,6 +1482,8 @@ func (s *httpdServer) setupRESTAPIRoutes() {
 					compressor.Handler).Get(folderPath+"/{name}/fs/dirs", adminReadFolderDir)
 				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles)).
 					Get(folderPath+"/{name}/fs/files", adminGetFolderFile)
+				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles)).
+					Post(folderPath+"/{name}/fs/streamzip", adminGetFolderFilesAsZip)
 				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles),
 					s.checkPerms(dataprovider.PermAdminChangeUsers)).Post(folderPath+"/{name}/fs/dirs", adminFsCreateDir(getAdminFolderWriteConnection))
 				router.With(s.checkPerms(dataprovider.PermAdminManageFolders), s.checkPerms(dataprovider.PermAdminViewUserFiles),

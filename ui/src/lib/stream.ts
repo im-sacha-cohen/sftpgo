@@ -50,24 +50,44 @@ function waitForController(ms: number): Promise<boolean> {
   });
 }
 
-/** Registers the streaming worker once; resolves true when media can stream. */
+function timeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([p, new Promise<T>((resolve) => window.setTimeout(() => resolve(fallback), ms))]);
+}
+
+let listening = false;
+
+/**
+ * Registers the streaming worker; resolves true when media can stream. A
+ * success is kept; a failure is retried on the next call (the worker may
+ * still have been installing).
+ */
 export function streamingReady(): Promise<boolean> {
   if (ready) return ready;
-  ready = (async () => {
+  const attempt = (async () => {
     if (!('serviceWorker' in navigator) || !window.isSecureContext) return false;
     try {
       const base = config.consoleBase.replace(/\/$/, '');
-      answerTokenRequests();
-      await navigator.serviceWorker.register(`${base}/stream-sw.js?api=${encodeURIComponent(config.apiBase)}`, {
+      if (!listening) {
+        answerTokenRequests();
+        listening = true;
+      }
+      const reg = await navigator.serviceWorker.register(`${base}/stream-sw.js?api=${encodeURIComponent(config.apiBase)}`, {
         scope: `${base}/`,
       });
-      await navigator.serviceWorker.ready;
+      // `ready` never settles if the worker fails to install: don't wait forever.
+      const active = await timeout(navigator.serviceWorker.ready.then(() => true), 5000, false);
+      if (!active) return false;
+      if (!navigator.serviceWorker.controller) (reg.active ?? (await navigator.serviceWorker.ready).active)?.postMessage({ type: 'sftpgo-stream-claim' });
       return await waitForController(3000);
     } catch {
       return false;
     }
   })();
-  return ready;
+  ready = attempt;
+  void attempt.then((ok) => {
+    if (!ok && ready === attempt) ready = null;
+  });
+  return attempt;
 }
 
 /** URL of an API file download that the worker will authenticate (GET only). */

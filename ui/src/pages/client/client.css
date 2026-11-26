@@ -329,14 +329,88 @@
   display: none;
 }
 .files-pick[aria-pressed='true'] {
+  background: transparent;
+}
+/* Selected: a small filled checkbox, the same size as the empty one. */
+.files-pick[aria-pressed='true'] .files-pick__check {
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  padding: 2px;
+  border-radius: 5px;
   background: var(--accent);
   color: var(--accent-tx);
+}
+.has-selection .files-pick:hover,
+.files-pick[aria-pressed='true']:hover {
+  background: transparent;
 }
 .files-pick[aria-pressed='true'] .files-pick__icon {
   display: none;
 }
 .files-pick[aria-pressed='true'] .files-pick__check {
   display: block;
+}
+
+/* Empty checkbox in place of the icon on hover, and on every row once something is selected. */
+.files-pick__box {
+  display: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--tx-3);
+  border-radius: 5px;
+  background: var(--panel);
+}
+@media (hover: hover) {
+  .files-row:hover .files-pick[aria-pressed='false'] .files-pick__icon,
+  .files-tile:hover .files-pick[aria-pressed='false'] .files-pick__icon {
+    display: none;
+  }
+  .files-row:hover .files-pick[aria-pressed='false'] .files-pick__box,
+  .files-tile:hover .files-pick[aria-pressed='false'] .files-pick__box {
+    display: block;
+  }
+}
+.has-selection .files-pick[aria-pressed='false'] .files-pick__icon {
+  display: none;
+}
+.has-selection .files-pick[aria-pressed='false'] .files-pick__box {
+  display: block;
+}
+.files-pick:hover .files-pick__box {
+  border-color: var(--accent-strong);
+}
+
+/* Select all, in the Name header */
+.files-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0 16px 0 8px;
+  padding: 0;
+  vertical-align: middle;
+  border: 2px solid var(--tx-3);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--accent-tx);
+  cursor: pointer;
+}
+.files-all:hover {
+  border-color: var(--accent-strong);
+}
+.files-all.is-on {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.files-all:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.files-all:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 /* Row actions, shown on hover/focus */

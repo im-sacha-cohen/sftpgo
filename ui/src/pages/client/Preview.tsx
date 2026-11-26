@@ -32,7 +32,7 @@ export function PreviewModal({ path, ...rest }: PreviewProps) {
     <FilePreview
       path={path}
       fetchFile={(signal, range) => fetchFile(fc, path, signal, range)}
-      stream={['/user/files', { path }]}
+      stream={[fc.api('/user/files'), { path }]}
       actingAs={fc.actingAs}
       {...rest}
     />

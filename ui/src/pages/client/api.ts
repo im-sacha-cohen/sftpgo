@@ -147,7 +147,7 @@ export function uploadFile(fc: FilesClient, path: string, file: File, onProgress
       (e) => reject(e),
     );
     const send = (token: string) => {
-    xhr.open('POST', buildUrl('/user/files/upload', { path, mkdir_parents: 'true' }));
+    xhr.open('POST', buildUrl(fc.api('/user/files/upload'), { path, mkdir_parents: 'true' }));
     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
     if (file.lastModified) xhr.setRequestHeader('X-SFTPGO-MTIME', String(file.lastModified));
@@ -267,10 +267,13 @@ export async function copyText(text: string) {
 export function useClientPerms() {
   const { session } = useAuth();
   const fc = useFilesClient();
-  const p = fc.actingAs ? fc.perms : session?.kind === 'user' ? session.permissions : [];
+  const p = fc.id !== 'self' ? fc.perms : session?.kind === 'user' ? session.permissions : [];
   return {
     write: !p.includes('write-disabled'),
     shares: !p.includes('shares-disabled'),
+    /** Spaces have no server-side copy and no zip download. */
+    copy: !p.includes('copy-disabled'),
+    zip: !p.includes('zip-disabled'),
     sharesNoPassword: !p.includes('shares-without-password-disabled'),
     password: !p.includes('password-change-disabled'),
     mfa: !p.includes('mfa-disabled'),

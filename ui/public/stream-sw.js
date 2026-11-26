@@ -14,6 +14,11 @@ const API_BASE = new URL(self.location.href).searchParams.get('api') || '/api/v2
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+// A page loaded with a hard reload (Shift+reload) is not controlled by the
+// worker even though it is active: the page asks it to take control.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'sftpgo-stream-claim') event.waitUntil(self.clients.claim());
+});
 
 function askToken(client, url) {
   return new Promise((resolve) => {

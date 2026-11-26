@@ -15,6 +15,8 @@
 package httpd_test
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/url"
@@ -27,6 +29,7 @@ import (
 
 	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
 	"github.com/drakkan/sftpgo/v2/internal/httpdtest"
+	"github.com/drakkan/sftpgo/v2/internal/vfs"
 )
 
 func TestAdminReadUserFiles(t *testing.T) {
@@ -146,6 +149,72 @@ func TestAdminReadUserFiles(t *testing.T) {
 	admin.Role = ""
 	_, _, err = httpdtest.UpdateAdmin(admin, http.StatusOK)
 	assert.NoError(t, err)
+}
+
+func TestAdminFolderStreamZip(t *testing.T) {
+	mappedPath := filepath.Join(os.TempDir(), "zip-space")
+	folder, _, err := httpdtest.AddFolder(vfs.BaseVirtualFolder{Name: "zip-space", MappedPath: mappedPath}, http.StatusCreated)
+	require.NoError(t, err)
+	defer func() {
+		_, err := httpdtest.RemoveFolder(folder, http.StatusOK)
+		assert.NoError(t, err)
+		assert.NoError(t, os.RemoveAll(mappedPath))
+	}()
+	require.NoError(t, os.MkdirAll(filepath.Join(mappedPath, "Monday"), os.ModePerm))
+	require.NoError(t, os.WriteFile(filepath.Join(mappedPath, "Monday", "0000.mp3"), []byte("first hour"), os.ModePerm))
+	require.NoError(t, os.WriteFile(filepath.Join(mappedPath, "notes.txt"), []byte("notes"), os.ModePerm))
+
+	zipURL := func(name string) string { return folderPath + "/" + url.PathEscape(name) + "/fs/streamzip" }
+	post := func(token, target string, body []byte) (int, []byte) {
+		req, err := http.NewRequest(http.MethodPost, target, bytes.NewReader(body))
+		require.NoError(t, err)
+		setBearerForReq(req, token)
+		rr := executeRequest(req)
+		return rr.Code, rr.Body.Bytes()
+	}
+
+	token, err := getJWTAPITokenFromTestServer(defaultTokenAuthUser, defaultTokenAuthPass)
+	require.NoError(t, err)
+	code, body := post(token, zipURL(folder.Name), []byte(`["/Monday","/notes.txt"]`))
+	require.Equal(t, http.StatusOK, code, string(body))
+	zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	require.NoError(t, err)
+	var names []string
+	for _, f := range zr.File {
+		names = append(names, f.Name)
+	}
+	assert.Contains(t, names, "Monday/0000.mp3")
+	assert.Contains(t, names, "notes.txt")
+
+	code, _ = post(token, zipURL(folder.Name), []byte(`[]`))
+	assert.Equal(t, http.StatusBadRequest, code)
+	code, _ = post(token, zipURL(folder.Name), []byte(`not json`))
+	assert.Equal(t, http.StatusBadRequest, code)
+	code, _ = post(token, zipURL("missing-space"), []byte(`["/notes.txt"]`))
+	assert.Equal(t, http.StatusNotFound, code)
+	// Paths cannot escape the folder.
+	code, _ = post(token, zipURL(folder.Name), []byte(`["../../../../etc/passwd"]`))
+	assert.Equal(t, http.StatusNotFound, code)
+	code, _ = post(token, zipURL(folder.Name), []byte(`["/notes.txt","/missing"]`))
+	assert.Equal(t, http.StatusNotFound, code)
+	code, _ = post(token, zipURL(folder.Name), []byte(`["/"]`))
+	assert.Equal(t, http.StatusBadRequest, code)
+
+	// view_user_files alone is not enough: spaces also need manage_folders.
+	a := getTestAdmin()
+	a.Username = altAdminUsername
+	a.Password = altAdminPassword
+	a.Permissions = []string{dataprovider.PermAdminViewUserFiles}
+	admin, _, err := httpdtest.AddAdmin(a, http.StatusCreated)
+	require.NoError(t, err)
+	defer func() {
+		_, err := httpdtest.RemoveAdmin(admin, http.StatusOK)
+		assert.NoError(t, err)
+	}()
+	altToken, err := getJWTAPITokenFromTestServer(altAdminUsername, altAdminPassword)
+	require.NoError(t, err)
+	code, _ = post(altToken, zipURL(folder.Name), []byte(`["/notes.txt"]`))
+	assert.Equal(t, http.StatusForbidden, code)
 }
 
 func TestTokenBasicChallenge(t *testing.T) {

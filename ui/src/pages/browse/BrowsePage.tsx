@@ -1,19 +1,18 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Folder, FolderLock, Search, Settings2, User as UserIcon, UserX } from 'lucide-react';
+import { Folder, FolderLock, Search, Settings2, User as UserIcon, UserX } from 'lucide-react';
 import { api } from '@/api/client';
 import type { User } from '@/api/types';
 import { Page, PageHeader } from '@/app/PageHeader';
-import { Button, cx, EmptyState, Input, Skeleton, Spinner, useConfirm, useToast } from '@/components/ui';
+import { Button, cx, EmptyState, Input, Skeleton, Spinner } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { formatBytes } from '@/lib/format';
 import { fetchAll, useSpaces, type SpaceFolder } from '@/pages/spaces/api';
-import { analyzeAccess, setUserAccess } from '@/pages/spaces/model';
-import { errMessage, FsBrowser, type MountedSpace } from '@/pages/userfiles/FsBrowser';
+import { errMessage } from '@/pages/userfiles/FsBrowser';
 import { Explorer } from '@/pages/client/Explorer';
 import { DriveLayout, FolderTree, NewButton, SideTitle } from '@/pages/client/Drive';
-import { actAsClient, actAsToken, FilesClientProvider } from '@/pages/client/fsclient';
+import { actAsClient, actAsToken, FilesClientProvider, spaceClient } from '@/pages/client/fsclient';
 import '@/pages/client/client.css';
 import './browse.css';
 
@@ -56,11 +55,21 @@ export default function BrowsePage() {
     );
   }
 
+  if (kind === 's' && name) {
+    return (
+      <Page>
+        <SpaceFiles key={name} name={name} dir={dir} />
+      </Page>
+    );
+  }
+
   return (
     <Page>
       <PageHeader title="Files" subtitle="Everything stored on the server: each person’s own files and each shared space." />
       <DriveLayout label="People and spaces" sidebar={<Sidebar kind={kind} name={name} />}>
-        <section aria-label="Explorer">{kind && name ? <SpaceExplorer key={`${kind}:${name}`} kind={kind} name={name} dir={dir} /> : <Overview />}</section>
+        <section aria-label="Explorer">
+          <Overview />
+        </section>
       </DriveLayout>
     </Page>
   );
@@ -277,107 +286,75 @@ function Stat({ label, value, hint }: { label: string; value: string; hint: stri
 
 /* ---------------------------------------------------------------- */
 
-function SpaceExplorer({ kind, name, dir }: { kind: Kind; name: string; dir: string }) {
+/**
+ * The files of a space, in the same explorer as a person's files. The
+ * administrator's own session is used (admin routes /folders/{name}/fs/…).
+ */
+function SpaceFiles({ name, dir }: { name: string; dir: string }) {
   const { can, session } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const confirm = useConfirm();
-  const toast = useToast();
-  const isSpace = kind === 's';
+  // Changing files needs change_users, for spaces too.
+  const writable = can('edit_users');
+  const client = useMemo(() => spaceClient(name, writable), [name, writable]);
+  const toRoute = (d: string) => route('s', name, d);
+  const allowed = can('manage_folders') && !session?.role;
 
-  // Spaces shown inside a person's files: they look like folders but can only be removed from the files.
-  const mounts = useQuery({
-    queryKey: ['users', name, 'mounts'],
-    queryFn: async () => {
-      const user = await api.get<User>(`/users/${enc(name)}`);
-      const a = await analyzeAccess(user);
-      const map = new Map<string, MountedSpace>();
-      for (const m of a.mounts)
-        if (m.used && m.path !== '/')
-          map.set(m.path, { space: m.space, removable: m.kind === 'user', via: m.kind === 'user' ? 'Given directly' : `Through group ${m.from}` });
-      return map;
-    },
-    enabled: !isSpace && can('view_users'),
-  });
-  const unmount = async (path: string, m: MountedSpace) => {
-    const ok = await confirm({
-      title: `Remove “${m.space}” from ${name}’s files?`,
-      message: `${name} won’t see ${path} any more. The files of the space stay where they are.`,
-      confirmLabel: 'Remove access',
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      await setUserAccess(name, m.space, null, null);
-      await qc.invalidateQueries({ queryKey: ['users'] });
-      await qc.invalidateQueries({ queryKey: ['folders'] });
-      await qc.invalidateQueries({ queryKey: ['user-files', name] });
-      toast({ title: `${name} no longer has access to ${m.space}`, tone: 'ok' });
-    } catch (err) {
-      toast({ title: 'Couldn’t remove the access', description: errMessage(err), tone: 'bad' });
-    }
-  };
-
-  if (isSpace && (!can('manage_folders') || session?.role)) {
+  if (!allowed) {
     return (
-      <EmptyState
-        icon={FolderLock}
-        title="You can’t open spaces"
-        description={session?.role ? 'Administrators limited to a role can’t open the files of spaces.' : 'This needs the “manage_folders” permission.'}
-      />
+      <DriveLayout label="People and spaces" sidebar={<Sidebar kind="s" name={name} />}>
+        <EmptyState
+          icon={FolderLock}
+          title="You can’t open spaces"
+          description={session?.role ? 'Administrators limited to a role can’t open the files of spaces.' : 'This needs the “manage_folders” permission.'}
+        />
+      </DriveLayout>
     );
   }
 
-  // Changing files needs change_users, for spaces too.
-  const writable = can('edit_users');
-  const settingsTo = isSpace ? `/spaces/${enc(name)}` : `/users/${enc(name)}`;
+  // Writes go through a synthetic user: refresh the space's used size quietly.
   const onChanged = () => {
-    if (isSpace) {
-      // Writes go through a synthetic user: refresh the space's used size quietly.
-      if (!can('quota_scans')) return;
-      void api
-        .post(`/quotas/folders/${enc(name)}/scan`)
-        .catch(() => undefined)
-        .finally(() => window.setTimeout(() => qc.invalidateQueries({ queryKey: ['folders'] }), 1500));
-    } else {
-      void qc.invalidateQueries({ queryKey: ['users', 'browse'] });
-    }
+    if (!can('quota_scans')) return;
+    void api
+      .post(`/quotas/folders/${enc(name)}/scan`)
+      .catch(() => undefined)
+      .finally(() => window.setTimeout(() => qc.invalidateQueries({ queryKey: ['folders'] }), 1500));
   };
 
   return (
-    <div className="browse-explorer">
-      <Button size="sm" variant="ghost" icon={ArrowLeft} className="browse-explorer__back" onClick={() => navigate('/browse')}>
-        All people and spaces
-      </Button>
-      <div className="browse-explorer__head">
-        <span className={cx('browse-item__icon', 'is-lg', isSpace && 'is-space')} aria-hidden="true">
-          {isSpace ? <Folder size={20} strokeWidth={1.9} /> : <UserIcon size={20} strokeWidth={1.9} />}
-        </span>
-        <div className="browse-explorer__titles">
-          <h2 className="browse-explorer__title mono">{name}</h2>
-          <p className="browse-explorer__sub">
-            {isSpace
-              ? 'Shared space. Everyone who has access sees these files.'
-              : writable
-                ? 'Their own files. Changes are made as this person: their permissions and quota apply.'
-                : 'Their own files. Read-only.'}
-          </p>
-        </div>
-        <Button size="sm" variant="secondary" icon={Settings2} onClick={() => navigate(settingsTo)}>
-          {isSpace ? 'Who has access' : 'Account and access'}
-        </Button>
-      </div>
-      <FsBrowser
-        base={`/${isSpace ? 'folders' : 'users'}/${enc(name)}/fs`}
-        cacheKey={[isSpace ? 'folder-files' : 'user-files', name]}
-        dir={dir}
-        route={(d) => route(kind, name, d)}
-        rootLabel={isSpace ? name : 'Home'}
-        writable={writable}
-        onChanged={onChanged}
-        mounts={isSpace ? undefined : mounts.data}
-        onUnmount={can('edit_users') ? (p, m) => void unmount(p, m) : undefined}
-      />
-    </div>
+    <FilesClientProvider client={client}>
+      <DriveLayout
+        label="People and spaces"
+        sidebar={
+          <>
+            {writable && <NewButton />}
+            <Sidebar kind="s" name={name}>
+              <FolderTree rootLabel={name} rootIcon={Folder} current={dir} route={toRoute} />
+            </Sidebar>
+          </>
+        }
+      >
+        <Explorer
+          dir={dir}
+          route={toRoute}
+          rootLabel={name}
+          actionsInSidebar={writable}
+          onChanged={onChanged}
+          context={
+            <>
+              <Folder size={15} aria-hidden="true" />
+              <span>
+                Shared space <strong>{name}</strong>
+                {writable ? ' · everyone who has access sees these files' : ' · read only'}
+              </span>
+              <span className="files-context__fill" />
+              <Button size="sm" variant="ghost" icon={Settings2} onClick={() => navigate(`/spaces/${enc(name)}`)}>
+                Who has access
+              </Button>
+            </>
+          }
+        />
+      </DriveLayout>
+    </FilesClientProvider>
   );
 }

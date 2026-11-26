@@ -17,7 +17,11 @@ export interface FilesClient {
   request<T = unknown>(path: string, opts?: RequestOptions): Promise<T>;
   /** Bearer token for requests made outside `request` (XHR uploads, streaming). */
   token(): Promise<string>;
+  /** API path to call for a user files endpoint ("/user/files"…): spaces map them to their own routes. */
+  api(path: string): string;
 }
+
+const same = (path: string) => path;
 
 export const selfClient: FilesClient = {
   id: 'self',
@@ -34,6 +38,7 @@ export const selfClient: FilesClient = {
     if (!s || s.expiresAt <= Date.now()) throw new ApiError(401, 'Session expired');
     return s.token;
   },
+  api: same,
 };
 
 interface ActAsToken {
@@ -108,6 +113,25 @@ export function actAsClient(username: string, first: ActAsToken): FilesClient {
     perms: first.perms,
     request: (path, opts) => send(path, opts, true),
     token: async () => (await actAsToken(username)).token,
+    api: same,
+  };
+}
+
+/**
+ * The files of a space, opened by an administrator with their own session.
+ * The explorer calls the user endpoints; they are sent to the space's admin
+ * routes (/folders/{name}/fs/…), which have no copy or shares.
+ */
+export function spaceClient(name: string, writable: boolean): FilesClient {
+  const base = `/folders/${encodeURIComponent(name)}/fs`;
+  const api = (path: string) => (path.startsWith('/user/') ? base + path.slice('/user'.length) : path);
+  return {
+    id: `space:${name}`,
+    username: name,
+    perms: ['shares-disabled', 'copy-disabled', ...(writable ? [] : ['write-disabled'])],
+    request: (path, opts) => request(api(path), opts),
+    token: selfClient.token,
+    api,
   };
 }
 
